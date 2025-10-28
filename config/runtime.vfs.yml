@@ -1,0 +1,15 @@
+base_url: "https://visa.vfsglobal.com"
+availability_endpoint: "/tur/en/fra/book-appointment"  # navigational; DOM parse
+booking_endpoint: "/tur/en/fra/book-appointment"       # navigational; DOM submit
+submit_endpoint: "/tur/en/fra/book-appointment"        # navigational; DOM submit
+session_store_path: "config/session_store.example.json"
+poll_interval_seconds: 25
+email:
+  host: "imap.example.com"
+  port: 993
+  username: "user@example.com"
+  password: "change-me"
+  folder: "INBOX"
+  use_ssl: true
+form_mapping_path: "config/form_mapping.vfs.yml"
+

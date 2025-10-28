@@ -1,0 +1,26 @@
+[
+  {
+    "session_id": "session-001",
+    "user_id": "user-123",
+    "email": "user@example.com",
+    "credentials": {
+      "username": "portal_username",
+      "password": "portal_password"
+    },
+    "profile": {
+      "first_name": "Ada",
+      "last_name": "Lovelace",
+      "phone": "+15551234567",
+      "document_number": "ABC123456",
+      "date_of_birth": "1990-01-01"
+    },
+    "preferences": {
+      "locations": ["main-office"],
+      "poll_interval_seconds": 20
+    },
+    "metadata": {
+      "notes": "Preferred morning slots"
+    }
+  }
+]
+

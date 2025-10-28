@@ -1,0 +1,12 @@
+fields:
+  - selector: "#firstName"
+    value_key: "first_name"
+  - selector: "#lastName"
+    value_key: "last_name"
+  - selector: "#phoneNumber"
+    value_key: "phone"
+  - selector: "#documentNumber"
+    value_key: "document_number"
+  - selector: "#dateOfBirth"
+    value_key: "date_of_birth"
+

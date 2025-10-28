@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentbot"
+version = "0.1.0"
+description = "Multi-agent appointment booking automation framework."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Your Name", email = "you@example.com" }
+]
+dependencies = [
+  "httpx>=0.25,<0.28",
+  "pydantic>=2.5,<3",
+  "rich>=13.0,<14",
+  "anyio>=4.0,<5",
+  "PyYAML>=6.0,<7.0",
+  "fastapi>=0.104,<1",
+  "uvicorn[standard]>=0.23,<1",
+  "redis>=4.6,<6"
+]
+readme = "README.md"
+
+[project.optional-dependencies]
+browser = ["playwright>=1.40,<1.48", "selectolax>=0.3.15", "tenacity>=8.2,<9"]
+email = ["imapclient>=3.0,<4.0", "aiosmtplib>=2.0,<3.0"]
+dev = ["pytest>=7.4,<8.0", "pytest-asyncio>=0.21,<0.23", "ruff>=0.1.6"]
+
+[project.urls]
+Homepage = "https://example.com"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

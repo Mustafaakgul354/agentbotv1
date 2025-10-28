@@ -1,0 +1,135 @@
+"""FastAPI application exposing runtime control endpoints."""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+from agentbot.agents.booking import BookingAgent
+from agentbot.agents.monitor import MonitorAgent
+from agentbot.core.message_bus import MessageBus
+from agentbot.core.message_bus_redis import RedisMessageBus  # optional
+from agentbot.core.locks_redis import RedisLockManager
+from agentbot.core.runtime import AgentRuntime
+from agentbot.core.settings import RuntimeSettings
+from agentbot.data.session_store import SessionRecord, SessionStore
+from agentbot.services import EmailInboxService, FormFiller, HttpClient
+from agentbot.services.form_filler import FieldMapping
+from agentbot.utils.logging import get_logger
+
+
+logger = get_logger("AgentAPI")
+
+
+class AppState(BaseModel):
+    started: bool
+    sessions: int
+
+
+def _load_form_mapping(path: Path | None) -> FormFiller:
+    if not path or not path.exists():
+        return FormFiller([])
+    import yaml
+
+    data = yaml.safe_load(path.read_text()) or {}
+    fields = [FieldMapping(**item) for item in data.get("fields", [])]
+    return FormFiller(fields)
+
+
+def create_app(config_path: Path) -> FastAPI:
+    settings = RuntimeSettings.from_file(config_path)
+    session_store = SessionStore(settings.session_store_path)
+    # Select message bus backend
+    import os
+
+    bus_backend = os.getenv("AGENTBOT_BUS", "memory").lower()
+    if bus_backend == "redis":
+        message_bus = RedisMessageBus(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+    else:
+        message_bus = MessageBus()
+    http_client = HttpClient(str(settings.base_url))
+    email_service = EmailInboxService(**settings.email.model_dump())
+    form_filler = _load_form_mapping(settings.form_mapping_path)
+
+    runtime = AgentRuntime(session_store=session_store, message_bus=message_bus)
+
+    # Site providers: default to VFS Playwright
+    from agentbot.browser.play import BrowserFactory
+    from agentbot.site.vfs_fra_flow import (
+        VfsAvailabilityProvider,
+        VfsBookingProvider,
+    )
+
+    browser = BrowserFactory(headless=False)
+    lock_manager = RedisLockManager() if bus_backend == "redis" else None
+
+    def monitor_factory(config, record: SessionRecord) -> MonitorAgent:
+        provider = VfsAvailabilityProvider(browser, email_service=email_service)
+        return MonitorAgent(config, message_bus=message_bus, session_record=record, provider=provider)
+
+    def booking_factory(config, record: SessionRecord) -> BookingAgent:
+        provider = VfsBookingProvider(browser, email_service=email_service, form_filler=form_filler)
+        return BookingAgent(
+            config,
+            message_bus=message_bus,
+            session_record=record,
+            provider=provider,
+            lock_manager=lock_manager,
+        )
+
+    app = FastAPI(title="AgentBot Runtime")
+
+    @app.on_event("startup")
+    async def _startup() -> None:  # pragma: no cover
+        await runtime.bootstrap(monitor_factory, booking_factory)
+        await runtime.start()
+
+    @app.on_event("shutdown")
+    async def _shutdown() -> None:  # pragma: no cover
+        await runtime.stop()
+        await http_client.close_all()
+
+    @app.get("/health", response_model=AppState)
+    async def health() -> AppState:
+        sessions = len(await session_store.list_sessions())
+        return AppState(started=True, sessions=sessions)
+
+    class NewSession(BaseModel):
+        session_id: str
+        user_id: str
+        email: str
+        credentials: dict
+        profile: dict
+        preferences: dict = {}
+        metadata: dict = {}
+
+    @app.post("/sessions")
+    async def upsert_session(payload: NewSession) -> dict:
+        record = SessionRecord(**payload.model_dump())
+        await session_store.upsert(record)
+        return {"ok": True}
+
+    @app.post("/control/start")
+    async def start_runtime() -> dict:
+        await runtime.start()
+        return {"ok": True}
+
+    @app.post("/control/stop")
+    async def stop_runtime() -> dict:
+        await runtime.stop()
+        return {"ok": True}
+
+    return app
+
+
+# Default ASGI app when run via `uvicorn agentbot.app.main:app` with env AGENTBOT_CONFIG
+import os
+
+config_env = os.getenv("AGENTBOT_CONFIG", "config/runtime.example.yml")
+app = create_app(Path(config_env))
+
+

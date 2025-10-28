@@ -1,0 +1,13 @@
+fields:
+  # Applicant details (Step 2)
+  - selector: "input[name='firstName'] || #firstName"
+    value_key: "first_name"
+  - selector: "input[name='lastName'] || #lastName"
+    value_key: "last_name"
+  - selector: "input[name='mobileNumber'] || #phoneNumber"
+    value_key: "phone"
+  - selector: "input[name='passportNumber'] || #documentNumber"
+    value_key: "document_number"
+  - selector: "input[name='dob'] || #dateOfBirth"
+    value_key: "date_of_birth"
+

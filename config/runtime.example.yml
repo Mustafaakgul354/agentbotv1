@@ -1,0 +1,15 @@
+base_url: "https://target-website.example"
+availability_endpoint: "/api/appointments/availability"
+booking_endpoint: "/api/appointments/request-code"
+submit_endpoint: "/api/appointments/submit-booking"
+session_store_path: "config/session_store.example.json"
+poll_interval_seconds: 30
+email:
+  host: "imap.example.com"
+  port: 993
+  username: "user@example.com"
+  password: "change-me"
+  folder: "INBOX"
+  use_ssl: true
+form_mapping_path: "config/form_mapping.example.yml"
+

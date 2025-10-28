@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+
+  api:
+    build: .
+    command: uvicorn agentbot.app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - AGENTBOT_CONFIG=/app/config/runtime.example.yml
+    volumes:
+      - ./:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+
+
