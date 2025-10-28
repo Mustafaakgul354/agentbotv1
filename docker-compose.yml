@@ -18,5 +18,6 @@ services:
       - "8000:8000"
     depends_on:
       - redis
+    restart: always 
 
 
