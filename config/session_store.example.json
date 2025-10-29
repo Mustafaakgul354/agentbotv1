@@ -8,11 +8,11 @@
       "password": "portal_password"
     },
     "profile": {
-      "first_name": "Ada",
-      "last_name": "Lovelace",
-      "phone": "+15551234567",
+      "first_name": "Mustafa Hüdai",
+      "last_name": "Akgül",
+      "phone": "+905530965657",
       "document_number": "ABC123456",
-      "date_of_birth": "1990-01-01"
+      "date_of_birth": "2002-05-09"
     },
     "preferences": {
       "locations": ["main-office"],
