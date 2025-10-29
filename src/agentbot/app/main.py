@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+import os
+
+from fastapi import FastAPI
 from pydantic import BaseModel
 
 from agentbot.agents.booking import BookingAgent
@@ -44,8 +44,6 @@ def create_app(config_path: Path) -> FastAPI:
     settings = RuntimeSettings.from_file(config_path)
     session_store = SessionStore(settings.session_store_path)
     # Select message bus backend
-    import os
-
     bus_backend = os.getenv("AGENTBOT_BUS", "memory").lower()
     if bus_backend == "redis":
         message_bus = RedisMessageBus(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
@@ -54,6 +52,21 @@ def create_app(config_path: Path) -> FastAPI:
     http_client = HttpClient(str(settings.base_url))
     email_service = EmailInboxService(**settings.email.model_dump())
     form_filler = _load_form_mapping(settings.form_mapping_path)
+
+    # Optional LLM wiring
+    llm = None
+    try:
+        llm_provider = os.getenv("AGENTBOT_LLM", "").lower()
+        if llm_provider == "openai":
+            api_key = os.getenv("OPENAI_API_KEY")
+            if api_key:
+                from agentbot.services.llm import OpenAIClient  # lazy import
+
+                llm = OpenAIClient(api_key=api_key, model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
+            else:
+                logger.warning("AGENTBOT_LLM=openai but OPENAI_API_KEY not set; LLM disabled")
+    except Exception as exc:
+        logger.warning("LLM disabled: %s", exc)
 
     runtime = AgentRuntime(session_store=session_store, message_bus=message_bus)
 
@@ -68,7 +81,7 @@ def create_app(config_path: Path) -> FastAPI:
     lock_manager = RedisLockManager() if bus_backend == "redis" else None
 
     def monitor_factory(config, record: SessionRecord) -> MonitorAgent:
-        provider = VfsAvailabilityProvider(browser, email_service=email_service)
+        provider = VfsAvailabilityProvider(browser, email_service=email_service, llm=llm)
         return MonitorAgent(config, message_bus=message_bus, session_record=record, provider=provider)
 
     def booking_factory(config, record: SessionRecord) -> BookingAgent:
@@ -127,7 +140,6 @@ def create_app(config_path: Path) -> FastAPI:
 
 
 # Default ASGI app when run via `uvicorn agentbot.app.main:app` with env AGENTBOT_CONFIG
-import os
 
 config_env = os.getenv("AGENTBOT_CONFIG", "config/runtime.example.yml")
 app = create_app(Path(config_env))

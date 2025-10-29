@@ -12,7 +12,7 @@ WORKDIR /app
 COPY pyproject.toml README.md /app/
 COPY src /app/src
 RUN pip install --upgrade pip \
-    && pip install ".[browser,email]"
+    && pip install ".[browser,email,llm]"
 
 EXPOSE 8000
 

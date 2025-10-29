@@ -1,24 +1,27 @@
 
+version: "3.9"
+
 services:
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
     command: ["redis-server", "--appendonly", "yes"]
+    restart: always
 
   api:
     build: .
-    command: uvicorn agentbot.app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn src.agentbot.app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
-      - AGENTBOT_CONFIG=/app/config/runtime.yml
-      - AGENTBOT_BUS=redis
-      - REDIS_URL=redis://redis:6379/0
+      - AGENTBOT_CONFIG=/app/config/runtime.example.yml
+      - PYTHONPATH=/app/src
+    env_file:
+      - .env
+    working_dir: /app/src
     volumes:
       - ./:/app
     ports:
       - "8000:8000"
     depends_on:
       - redis
-    restart: always 
-
-
+    restart: always

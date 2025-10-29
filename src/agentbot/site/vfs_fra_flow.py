@@ -23,6 +23,7 @@ from agentbot.core.models import (
 from agentbot.data.session_store import SessionRecord
 from agentbot.services.email import EmailInboxService
 from agentbot.services.form_filler import FormFiller
+from agentbot.services.llm import LLMClient
 from agentbot.utils.logging import get_logger
 from .turnstile import await_turnstile_if_present
 from agentbot.utils.artifacts import save_screenshot
@@ -54,9 +55,10 @@ class VfsSelectors:
 
 
 class VfsAvailabilityProvider(AvailabilityProvider):
-    def __init__(self, browser: BrowserFactory, *, email_service: EmailInboxService) -> None:
+    def __init__(self, browser: BrowserFactory, *, email_service: EmailInboxService, llm: Optional[LLMClient] = None) -> None:
         self.browser = browser
         self.email_service = email_service
+        self.llm = llm
 
     async def ensure_login(self, session: SessionRecord) -> None:
         creds = session.credentials
@@ -124,6 +126,24 @@ class VfsAvailabilityProvider(AvailabilityProvider):
                     pass
             except Exception:
                 pass
+
+            # Optional LLM-assisted classification when no structured data is found
+            if not slots and self.llm:
+                try:
+                    body_text = await page.inner_text("body")
+                    snippet = body_text[:4000]
+                    answer = await self.llm.generate(
+                        system="You classify appointment pages.",
+                        user=(
+                            "Answer strictly 'yes' or 'no'. Does this text explicitly say no appointments are available right now?\n\n"
+                            + snippet
+                        ),
+                        temperature=0.0,
+                    )
+                    if answer.lower().strip().startswith("yes"):
+                        return []
+                except Exception:
+                    pass
 
             # Fallback: parse DOM
             try:

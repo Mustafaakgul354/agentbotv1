@@ -27,6 +27,19 @@ Agents communicate through an in-memory message bus by default; adapters make it
 
 The CLI spins up monitor/booking agents for every session in your store and runs them until interrupted.
 
+## Optional: Enable LLM (OpenAI)
+
+Set these variables (for Docker, place them in your `.env`):
+
+```env
+AGENTBOT_LLM=openai
+OPENAI_API_KEY=sk-...
+# Optional model override
+OPENAI_MODEL=gpt-4o-mini
+```
+
+When enabled, the runtime will initialise an OpenAI client and use it in the VFS availability flow as a fallback classification step (to understand pages that explicitly state that no appointments are available). The system continues to work without an LLM.
+
 ## Customising Providers
 
 The sample `ExampleAvailabilityProvider` and `ExampleBookingProvider` in `src/agentbot/services/site_provider.py` illustrate how to integrate a website using JSON APIs plus IMAP for OTP retrieval. For real-world usage you will typically:
