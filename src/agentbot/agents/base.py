@@ -6,6 +6,7 @@ import abc
 import asyncio
 from typing import Optional
 
+# Change this import to avoid circular dependency
 from agentbot.core.message_bus import MessageBus
 from agentbot.core.models import AgentConfig
 from agentbot.utils.logging import get_logger

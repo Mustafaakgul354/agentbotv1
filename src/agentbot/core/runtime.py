@@ -4,23 +4,26 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Awaitable, Callable, List, Optional
+from typing import TYPE_CHECKING, Awaitable, Callable, List, Optional
 
-from agentbot.agents.base import BaseAgent
+# Import BaseAgent only for type checking to avoid circular import
+if TYPE_CHECKING:
+    from agentbot.agents.base import BaseAgent
+
 from agentbot.core.message_bus import MessageBus
 from agentbot.core.models import AgentConfig
 from agentbot.data.session_store import SessionRecord, SessionStore
 from agentbot.utils.logging import get_logger
 
 
-AgentFactory = Callable[[AgentConfig, SessionRecord], BaseAgent]
+AgentFactory = Callable[[AgentConfig, SessionRecord], "BaseAgent"]
 
 
 @dataclass(slots=True)
 class AgentBundle:
     session_id: str
-    monitor_agent: BaseAgent
-    booking_agent: BaseAgent
+    monitor_agent: "BaseAgent"
+    booking_agent: "BaseAgent"
 
 
 class AgentRuntime:
