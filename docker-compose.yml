@@ -11,7 +11,7 @@ services:
 
   api:
     build: .
-    command: uvicorn src.agentbot.app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn src.agentbot.app.main:app --host 0.0.0.0 --port 8000 --app-dir /app
     environment:
       - AGENTBOT_CONFIG=/app/config/runtime.example.yml
       - PYTHONPATH=/app/src
