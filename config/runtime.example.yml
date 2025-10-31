@@ -12,4 +12,11 @@ email:
   folder: "INBOX"
   use_ssl: true
 form_mapping_path: "config/form_mapping.example.yml"
-
+# Optional: BrowserQL configuration (uncomment to use BrowserQL instead of Playwright)
+# browserql:
+#   endpoint: "https://production-sfo.browserless.io/chrome/bql"
+#   token: "your-browserless-token"  # or use BROWSERQL_TOKEN env var
+#   proxy: "residential"  # optional: "residential" or "datacenter"
+#   proxy_country: "tr"  # optional: country code (e.g., "tr", "us")
+#   humanlike: true  # optional: enable human-like behavior
+#   block_consent_modals: true  # optional: auto-handle consent modals

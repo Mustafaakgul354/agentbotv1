@@ -18,6 +18,16 @@ class EmailSettings(BaseModel):
     use_ssl: bool = True
 
 
+class BrowserQLSettings(BaseModel):
+    """BrowserQL/Browserless.io settings."""
+    endpoint: Optional[HttpUrl] = None
+    token: Optional[str] = None  # Browserless.io token (can also use BROWSERQL_TOKEN env var)
+    proxy: Optional[str] = None  # "residential" or "datacenter"
+    proxy_country: Optional[str] = None  # e.g., "tr", "us"
+    humanlike: bool = True
+    block_consent_modals: bool = True
+
+
 class RuntimeSettings(BaseModel):
     base_url: HttpUrl
     availability_endpoint: str
@@ -27,6 +37,7 @@ class RuntimeSettings(BaseModel):
     poll_interval_seconds: int = 30
     email: EmailSettings
     form_mapping_path: Optional[Path] = None
+    browserql: Optional[BrowserQLSettings] = None
 
     @classmethod
     def from_file(cls, path: Path) -> "RuntimeSettings":

@@ -20,12 +20,37 @@ Agents communicate through an in-memory message bus by default; adapters make it
    - Populate `config/session_store.example.json` with one entry per user session (credentials + profile data) and point `session_store_path` in the runtime config to the file you maintain.
    - (Optional) Update `config/form_mapping.example.yml` with CSS selectors for the booking form inputs if you use a headless browser to submit forms.
 
-3. **Run the runtime**
+3. **Choose browser backend** (Playwright or BrowserQL)
+   - **Playwright** (default): Install playwright browsers with `playwright install`
+   - **BrowserQL**: Configure BrowserQL settings in `config/runtime.yml` or use environment variables (see below)
+
+4. **Run the runtime**
    ```bash
    python scripts/run_agents.py --config config/runtime.yml
    ```
 
 The CLI spins up monitor/booking agents for every session in your store and runs them until interrupted.
+
+## Optional: Enable BrowserQL (Browserless.io)
+
+To use BrowserQL instead of Playwright for browser automation, configure BrowserQL settings in your `config/runtime.yml`:
+
+```yaml
+browserql:
+  endpoint: "https://production-sfo.browserless.io/chrome/bql"
+  token: "your-browserless-token"  # or use BROWSERQL_TOKEN env var
+  proxy: "residential"  # optional: "residential" or "datacenter"
+  proxy_country: "tr"  # optional: country code for proxy
+  humanlike: true  # optional: enable human-like behavior
+  block_consent_modals: true  # optional: auto-handle consent modals
+```
+
+Or use environment variables:
+```env
+BROWSERQL_TOKEN=your-browserless-token
+```
+
+When BrowserQL is configured, agents will use it instead of Playwright. BrowserQL provides better stealth capabilities and avoids fingerprinting.
 
 ## Optional: Enable LLM (OpenAI)
 

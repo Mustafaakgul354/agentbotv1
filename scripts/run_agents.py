@@ -55,9 +55,26 @@ async def main() -> None:
     runtime = AgentRuntime(session_store=session_store, message_bus=message_bus)
 
     from agentbot.browser.play import BrowserFactory
+    from agentbot.browser.browserql import BrowserQLFactory
     from agentbot.site.vfs_fra_flow import VfsAvailabilityProvider, VfsBookingProvider
+    import os
 
-    browser = BrowserFactory(headless=False)
+    # Use BrowserQL if configured, otherwise fall back to Playwright
+    if settings.browserql and settings.browserql.endpoint:
+        endpoint = str(settings.browserql.endpoint)
+        token = settings.browserql.token or os.getenv("BROWSERQL_TOKEN")
+        browser = BrowserQLFactory(
+            endpoint=endpoint,
+            token=token,
+            proxy=settings.browserql.proxy,
+            proxy_country=settings.browserql.proxy_country,
+            humanlike=settings.browserql.humanlike,
+            block_consent_modals=settings.browserql.block_consent_modals,
+        )
+        logger.info("Using BrowserQL with endpoint: %s", endpoint)
+    else:
+        browser = BrowserFactory(headless=False)
+        logger.info("Using Playwright BrowserFactory")
 
     def monitor_factory(config, record: SessionRecord) -> MonitorAgent:
         provider = VfsAvailabilityProvider(browser, email_service=email_service)
