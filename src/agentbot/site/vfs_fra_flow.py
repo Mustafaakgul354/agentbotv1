@@ -61,12 +61,12 @@ class VfsAvailabilityProvider(AvailabilityProvider):
         self.llm = llm
 
     async def ensure_login(self, session: SessionRecord) -> None:
-        creds = session.credentials
+        credentials = session.credentials
         async with self.browser.page(session.session_id) as page:
             await page.goto(LOGIN_URL)
             await await_turnstile_if_present(page, timeout=8000)
-            await page.fill(VfsSelectors.email, creds.get("username", ""))
-            await page.fill(VfsSelectors.password, creds.get("password", ""))
+            await page.fill(VfsSelectors.email, credentials.get("username", ""))
+            await page.fill(VfsSelectors.password, credentials.get("password", ""))
             await page.click(VfsSelectors.sign_in)
             await await_turnstile_if_present(page, timeout=12000)
             await save_screenshot(page, session.session_id, "after-login-submit")
@@ -74,14 +74,14 @@ class VfsAvailabilityProvider(AvailabilityProvider):
             # OTP step
             try:
                 await page.wait_for_selector(VfsSelectors.otp, timeout=15000)
-                code = await self.email_service.fetch_latest_code(
+                verification_code = await self.email_service.fetch_latest_code(
                     timeout=90,
                     subject_filters=["VFS", "one time password", "OTP"],
                     unseen_only=True,
                     lookback=30,
                 )
-                if code:
-                    await page.fill(VfsSelectors.otp, code)
+                if verification_code:
+                    await page.fill(VfsSelectors.otp, verification_code)
                     await page.click(VfsSelectors.sign_in)
             except Exception:
                 pass  # already logged in or bypassed
@@ -100,24 +100,24 @@ class VfsAvailabilityProvider(AvailabilityProvider):
                     timeout=5000,
                 )
                 try:
-                    data = await response.json()
+                    response_data = await response.json()
                     # Attempt common shapes
-                    items = data.get("slots") or data.get("data") or []
-                    for item in items:
-                        ts = item.get("start") or item.get("start_time") or item.get("datetime")
-                        if not ts:
+                    slot_items = response_data.get("slots") or response_data.get("data") or []
+                    for slot_item in slot_items:
+                        timestamp_str = slot_item.get("start") or slot_item.get("start_time") or slot_item.get("datetime")
+                        if not timestamp_str:
                             continue
                         try:
-                            when = dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                            slot_datetime = dt.datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
                         except Exception:
                             continue
                         slots.append(
                             AppointmentAvailability(
                                 session_id=session.session_id,
-                                slot_id=str(item.get("id") or item.get("slot_id") or when.isoformat()),
-                                slot_time=when,
+                                slot_id=str(slot_item.get("id") or slot_item.get("slot_id") or slot_datetime.isoformat()),
+                                slot_time=slot_datetime,
                                 location=session.preferences.get("centre"),
-                                extra=item,
+                                extra=slot_item,
                             )
                         )
                     if slots:
@@ -149,22 +149,22 @@ class VfsAvailabilityProvider(AvailabilityProvider):
             try:
                 await page.wait_for_selector(VfsSelectors.calendar_cell, timeout=10000)
                 # Try first enabled date cell
-                cells = await page.query_selector_all(VfsSelectors.calendar_cell)
-                if not cells:
+                calendar_cells = await page.query_selector_all(VfsSelectors.calendar_cell)
+                if not calendar_cells:
                     return slots
-                await cells[0].click()
+                await calendar_cells[0].click()
                 await page.wait_for_selector(VfsSelectors.time_slot, timeout=5000)
                 await save_screenshot(page, session.session_id, "slots-visible")
-                t_buttons = await page.query_selector_all(VfsSelectors.time_slot)
-                for idx, btn in enumerate(t_buttons[:3]):
-                    ts = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+                time_slot_buttons = await page.query_selector_all(VfsSelectors.time_slot)
+                for index, button in enumerate(time_slot_buttons[:3]):
+                    current_time = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
                     slots.append(
                         AppointmentAvailability(
                             session_id=session.session_id,
-                            slot_id=f"dom-{idx}",
-                            slot_time=ts,
+                            slot_id=f"dom-{index}",
+                            slot_time=current_time,
                             location=session.preferences.get("centre", "VFS Centre"),
-                            extra={"dom_index": idx},
+                            extra={"dom_index": index},
                         )
                     )
             except Exception:
@@ -184,17 +184,17 @@ class VfsBookingProvider(BookingProvider):
             await page.goto(APPT_DETAIL_URL)
 
             # Step 1: selections from preferences
-            prefs = session.preferences
+            user_preferences = session.preferences
             try:
-                if centre := prefs.get("centre"):
+                if centre := user_preferences.get("centre"):
                     await page.click(VfsSelectors.app_centre)
                     await page.get_by_text(str(centre), exact=False).click()
-                if category := prefs.get("category"):
+                if category := user_preferences.get("category"):
                     await page.click(VfsSelectors.category)
                     await page.get_by_text(str(category), exact=False).click()
-                if sub := prefs.get("sub_category"):
+                if subcategory := user_preferences.get("sub_category"):
                     await page.click(VfsSelectors.subcategory)
-                    await page.get_by_text(str(sub), exact=False).click()
+                    await page.get_by_text(str(subcategory), exact=False).click()
                 await page.click(VfsSelectors.save_next)
             except Exception:
                 pass
@@ -219,15 +219,15 @@ class VfsBookingProvider(BookingProvider):
             await page.goto(BOOK_URL)
             try:
                 await page.wait_for_selector(VfsSelectors.time_slot, timeout=10000)
-                buttons = await page.query_selector_all(VfsSelectors.time_slot)
-                if not buttons:
+                time_slot_buttons = await page.query_selector_all(VfsSelectors.time_slot)
+                if not time_slot_buttons:
                     return AppointmentBookingResult(
                         session_id=request.session_id,
                         success=False,
                         slot=request.slot,
                         message="No slots visible at booking time",
                     )
-                await buttons[0].click()
+                await time_slot_buttons[0].click()
                 await page.click(VfsSelectors.confirm)
                 await asyncio.sleep(1)
                 return AppointmentBookingResult(
@@ -236,12 +236,12 @@ class VfsBookingProvider(BookingProvider):
                     slot=request.slot,
                     confirmation_number=None,
                 )
-            except Exception as exc:
+            except Exception as error:
                 return AppointmentBookingResult(
                     session_id=request.session_id,
                     success=False,
                     slot=request.slot,
-                    message=str(exc),
+                    message=str(error),
                 )
 
 

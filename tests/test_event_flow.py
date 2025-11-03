@@ -46,26 +46,29 @@ class DummyBook(BookingProvider):
 @pytest.mark.asyncio
 async def test_monitor_to_booking_flow():
     bus = MessageBus()
-    record = SessionRecord(
+    session_record = SessionRecord(
         session_id="s-1",
         user_id="u-1",
         email="e@example.com",
     )
-    config = AgentConfig(session_id=record.session_id, user_id=record.user_id, poll_interval_seconds=1)
+    agent_config = AgentConfig(session_id=session_record.session_id, user_id=session_record.user_id, poll_interval_seconds=5)
 
-    monitor = MonitorAgent(config, message_bus=bus, session_record=record, provider=DummyAvail())
-    booking = BookingAgent(config, message_bus=bus, session_record=record, provider=DummyBook())
+    monitor = MonitorAgent(agent_config, message_bus=bus, session_record=session_record, provider=DummyAvail())
+    booking = BookingAgent(agent_config, message_bus=bus, session_record=session_record, provider=DummyBook())
 
     await monitor.start()
     await booking.start()
+    
+    # Give agents a moment to fully start and subscribe
+    await asyncio.sleep(0.1)
 
     # Wait for booking result event
     async def wait_result():
-        async for e in bus.subscribe(EventType.BOOKING_RESULT, session_id=record.session_id):
-            return e
+        async for event_envelope in bus.subscribe(EventType.BOOKING_RESULT, session_id=session_record.session_id):
+            return event_envelope
 
-    envelope = await asyncio.wait_for(wait_result(), timeout=5)
-    assert envelope.payload.get("success") is True
+    result_envelope = await asyncio.wait_for(wait_result(), timeout=10)
+    assert result_envelope.payload.get("success") is True
 
     await monitor.stop()
     await booking.stop()

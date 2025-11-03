@@ -26,10 +26,10 @@ def _load_form_mapping(path: Path | None) -> FormFiller:
         logger.warning("No form mapping provided; booking provider will send raw profile payload.")
         return FormFiller([])
 
-    data = json.loads(path.read_text()) if path.suffix.lower() == ".json" else _load_yaml(path)
+    mapping_data = json.loads(path.read_text()) if path.suffix.lower() == ".json" else _load_yaml(path)
     fields = [
-        FieldMapping(selector=item["selector"], value_key=item["value_key"])
-        for item in data.get("fields", [])
+        FieldMapping(selector=field_item["selector"], value_key=field_item["value_key"])
+        for field_item in mapping_data.get("fields", [])
     ]
     return FormFiller(fields)
 
@@ -43,9 +43,9 @@ def _load_yaml(path: Path) -> dict:
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Run multi-agent appointment booking runtime.")
     parser.add_argument("--config", type=Path, default=Path("config/runtime.example.yml"), help="Path to runtime YAML")
-    args = parser.parse_args()
+    cli_args = parser.parse_args()
 
-    settings = RuntimeSettings.from_file(args.config)
+    settings = RuntimeSettings.from_file(cli_args.config)
     session_store = SessionStore(settings.session_store_path)
     message_bus = MessageBus()
     http_client = HttpClient(str(settings.base_url))
@@ -76,27 +76,27 @@ async def main() -> None:
         browser = BrowserFactory(headless=False)
         logger.info("Using Playwright BrowserFactory")
 
-    def monitor_factory(config, record: SessionRecord) -> MonitorAgent:
+    def monitor_factory(agent_config, session_record: SessionRecord) -> MonitorAgent:
         provider = VfsAvailabilityProvider(browser, email_service=email_service)
-        effective_config = config.model_copy(
-            update={"poll_interval_seconds": config.poll_interval_seconds or settings.poll_interval_seconds}
+        effective_config = agent_config.model_copy(
+            update={"poll_interval_seconds": agent_config.poll_interval_seconds or settings.poll_interval_seconds}
         )
         return MonitorAgent(
             effective_config,
             message_bus=message_bus,
-            session_record=record,
+            session_record=session_record,
             provider=provider,
         )
 
-    def booking_factory(config, record: SessionRecord) -> BookingAgent:
+    def booking_factory(agent_config, session_record: SessionRecord) -> BookingAgent:
         from agentbot.core.locks_redis import RedisLockManager
 
         provider = VfsBookingProvider(browser, email_service=email_service)
         lock_manager = RedisLockManager()
         return BookingAgent(
-            config,
+            agent_config,
             message_bus=message_bus,
-            session_record=record,
+            session_record=session_record,
             provider=provider,
             lock_manager=lock_manager,
         )

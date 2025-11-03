@@ -61,7 +61,7 @@ class MonitorAgent(BaseAgent):
                         slot.slot_id,
                         slot.slot_time,
                     )
-            except Exception as exc:
-                self.logger.exception("Failed to check availability: %s", exc)
+            except Exception as error:
+                self.logger.exception("Failed to check availability: %s", error)
             await asyncio.sleep(self.config.poll_interval_seconds)
 

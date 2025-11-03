@@ -50,13 +50,13 @@ class AgentRuntime:
         """Instantiate agents for every persisted session."""
         self.logger.info("Bootstrapping agents from session store")
         sessions = await self.session_store.list_sessions()
-        for record in sessions:
-            config = record.to_agent_config()
-            monitor_agent = monitor_factory(config, record)
-            booking_agent = booking_factory(config, record)
+        for session_record in sessions:
+            agent_config = session_record.to_agent_config()
+            monitor_agent = monitor_factory(agent_config, session_record)
+            booking_agent = booking_factory(agent_config, session_record)
             self._bundles.append(
                 AgentBundle(
-                    session_id=record.session_id,
+                    session_id=session_record.session_id,
                     monitor_agent=monitor_agent,
                     booking_agent=booking_agent,
                 )

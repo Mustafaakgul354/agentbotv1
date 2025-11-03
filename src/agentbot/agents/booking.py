@@ -71,13 +71,13 @@ class BookingAgent(BaseAgent):
                         result = await self._provider.book(booking_request, self._record)
                 else:
                     result = await self._provider.book(booking_request, self._record)
-            except Exception as exc:
-                self.logger.exception("Booking provider error: %s", exc)
+            except Exception as error:
+                self.logger.exception("Booking provider error: %s", error)
                 result = AppointmentBookingResult(
                     session_id=self.config.session_id,
                     success=False,
                     slot=slot,
-                    message=str(exc),
+                    message=str(error),
                 )
 
             envelope = EventEnvelope(
