@@ -13,7 +13,7 @@ from .models import EventEnvelope, EventType
 Subscriber = Callable[[EventEnvelope], Awaitable[None]]
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class _Subscription:
     queue: "asyncio.Queue[EventEnvelope]"
     session_filter: Optional[str]

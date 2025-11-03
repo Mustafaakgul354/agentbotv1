@@ -7,8 +7,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
-from tenacity import retry, stop_after_attempt, wait_exponential_jitter
-
 from agentbot.utils.logging import get_logger
 
 
@@ -30,21 +28,21 @@ class BrowserFactory:
         self.user_data_root = user_data_root or Path(".user_data").resolve()
         self.proxy = proxy
         self._lock = asyncio.Lock()
-        self._pw = None
+        self._playwright_instance = None
 
-    async def _ensure_pw(self):
+    async def _ensure_playwright_instance(self):
         assert async_playwright is not None, "Install with [browser] extra to use Playwright"
         async with self._lock:
-            if self._pw is None:
-                self._pw = await async_playwright().start()
-            return self._pw
+            if self._playwright_instance is None:
+                self._playwright_instance = await async_playwright().start()
+            return self._playwright_instance
 
     @asynccontextmanager
     async def context(self, session_id: str) -> AsyncIterator[BrowserContext]:
-        pw = await self._ensure_pw()
+        playwright_instance = await self._ensure_playwright_instance()
         user_dir = self.user_data_root / session_id
         user_dir.mkdir(parents=True, exist_ok=True)
-        context = await pw.chromium.launch_persistent_context(
+        browser_context = await playwright_instance.chromium.launch_persistent_context(
             str(user_dir),
             headless=self.headless,
             args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
@@ -54,15 +52,15 @@ class BrowserFactory:
         )
         try:
             # minimal stealth: remove webdriver flag
-            await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-            yield context
+            await browser_context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            yield browser_context
         finally:
-            await context.close()
+            await browser_context.close()
 
     @asynccontextmanager
     async def page(self, session_id: str) -> AsyncIterator[Page]:
-        async with self.context(session_id) as ctx:
-            page = await ctx.new_page()
+        async with self.context(session_id) as browser_context:
+            page = await browser_context.new_page()
             yield page
 
 

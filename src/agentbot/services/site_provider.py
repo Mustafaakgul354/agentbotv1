@@ -42,18 +42,18 @@ class ExampleAvailabilityProvider(AvailabilityProvider):
         async with self.http_client.session(session.session_id) as client:
             response = await client.get(self.availability_endpoint)
             response.raise_for_status()
-            data = response.json()
+            response_data = response.json()
 
         slots: List[AppointmentAvailability] = []
-        for item in data.get("slots", []):
-            slot_time = dt.datetime.fromisoformat(item["start_time"])
+        for slot_item in response_data.get("slots", []):
+            slot_time = dt.datetime.fromisoformat(slot_item["start_time"])
             slots.append(
                 AppointmentAvailability(
                     session_id=session.session_id,
-                    slot_id=item["id"],
+                    slot_id=slot_item["id"],
                     slot_time=slot_time,
-                    location=item.get("location"),
-                    extra=item,
+                    location=slot_item.get("location"),
+                    extra=slot_item,
                 )
             )
         return slots
@@ -81,11 +81,11 @@ class ExampleBookingProvider(BookingProvider):
     async def book(self, request: AppointmentBookingRequest, session: SessionRecord) -> AppointmentBookingResult:
         async with self.http_client.session(session.session_id) as client:
             # Trigger verification code
-            trigger_resp = await client.post(self.booking_endpoint, json={"slot_id": request.slot.slot_id})
-            trigger_resp.raise_for_status()
+            trigger_response = await client.post(self.booking_endpoint, json={"slot_id": request.slot.slot_id})
+            trigger_response.raise_for_status()
 
-            code = await self.email_service.fetch_latest_code()
-            if not code:
+            verification_code = await self.email_service.fetch_latest_code()
+            if not verification_code:
                 return AppointmentBookingResult(
                     session_id=request.session_id,
                     success=False,
@@ -95,30 +95,30 @@ class ExampleBookingProvider(BookingProvider):
 
             form_payload = self.form_filler.build_payload(request.user_profile)
 
-            payload = {
+            booking_payload = {
                 "slot_id": request.slot.slot_id,
-                "verification_code": code,
+                "verification_code": verification_code,
                 "user_profile": request.user_profile,
                 "preferences": request.preferences,
                 "form_payload": form_payload,
             }
 
-            submit_resp = await client.post(self.submit_endpoint, json=payload)
-            if submit_resp.status_code >= 400:
+            submit_response = await client.post(self.submit_endpoint, json=booking_payload)
+            if submit_response.status_code >= 400:
                 return AppointmentBookingResult(
                     session_id=request.session_id,
                     success=False,
                     slot=request.slot,
-                    message=f"Booking failed with HTTP {submit_resp.status_code}",
-                    raw_response={"body": submit_resp.text},
+                    message=f"Booking failed with HTTP {submit_response.status_code}",
+                    raw_response={"body": submit_response.text},
                 )
 
-            data = submit_resp.json()
-            confirmation = data.get("confirmation_number")
+            response_data = submit_response.json()
+            confirmation = response_data.get("confirmation_number")
             return AppointmentBookingResult(
                 session_id=request.session_id,
                 success=True,
                 slot=request.slot,
                 confirmation_number=confirmation,
-                raw_response=data,
+                raw_response=response_data,
             )

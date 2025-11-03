@@ -32,18 +32,18 @@ class AgentPlanner:
         self._sessions: Dict[str, SessionFSM] = {}
 
     def on_availability(self, session_id: str, slot: AppointmentAvailability) -> None:
-        fsm = self._sessions.setdefault(session_id, SessionFSM())
-        fsm.state = SessionState.CLAIMING
-        fsm.last_slot = slot
+        session_state_machine = self._sessions.setdefault(session_id, SessionFSM())
+        session_state_machine.state = SessionState.CLAIMING
+        session_state_machine.last_slot = slot
 
     def on_booking_result(self, session_id: str, result: AppointmentBookingResult) -> SessionState:
-        fsm = self._sessions.setdefault(session_id, SessionFSM())
-        fsm.last_result = result
+        session_state_machine = self._sessions.setdefault(session_id, SessionFSM())
+        session_state_machine.last_result = result
         if result.success:
-            fsm.state = SessionState.BOOKED
+            session_state_machine.state = SessionState.BOOKED
         else:
-            fsm.state = SessionState.FAILED
-        return fsm.state
+            session_state_machine.state = SessionState.FAILED
+        return session_state_machine.state
 
     def reset(self, session_id: str) -> None:
         if session_id in self._sessions:
