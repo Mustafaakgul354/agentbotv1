@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -38,15 +39,40 @@ class SessionRecord(BaseModel):
 class SessionStore:
     """Minimal JSON file session persistence with async-friendly API."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, encryption_key: Optional[str] = None) -> None:
         self._path = path
         self._lock = asyncio.Lock()
         self._records: Dict[str, SessionRecord] = {}
+        self._fernet = self._init_fernet(encryption_key)
+        self._path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
             self._load()
 
+    def _init_fernet(self, key: Optional[str]) -> Optional["Fernet"]:
+        key = key or os.getenv("AGENTBOT_SESSION_KEY")
+        if not key:
+            return None
+        from cryptography.fernet import Fernet
+
+        if isinstance(key, str):
+            key_bytes = key.encode("utf-8")
+        else:
+            key_bytes = key
+        try:
+            return Fernet(key_bytes)
+        except Exception as exc:
+            raise ValueError("Invalid AGENTBOT_SESSION_KEY provided for SessionStore encryption") from exc
+
     def _load(self) -> None:
-        data = json.loads(self._path.read_text())
+        raw = self._path.read_bytes()
+        if self._fernet:
+            from cryptography.fernet import InvalidToken
+
+            try:
+                raw = self._fernet.decrypt(raw)
+            except InvalidToken as exc:
+                raise ValueError("Unable to decrypt session store with provided key") from exc
+        data = json.loads(raw.decode("utf-8"))
         records = {}
         for item in data:
             try:
@@ -58,7 +84,10 @@ class SessionStore:
 
     def _dump(self) -> None:
         serialized = [record.model_dump(mode="json") for record in self._records.values()]
-        self._path.write_text(json.dumps(serialized, indent=2))
+        payload = json.dumps(serialized, indent=2).encode("utf-8")
+        if self._fernet:
+            payload = self._fernet.encrypt(payload)
+        self._path.write_bytes(payload)
 
     async def list_sessions(self) -> List[SessionRecord]:
         async with self._lock:

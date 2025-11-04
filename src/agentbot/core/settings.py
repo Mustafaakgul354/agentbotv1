@@ -26,6 +26,7 @@ class BrowserQLSettings(BaseModel):
     proxy_country: Optional[str] = None  # e.g., "tr", "us"
     humanlike: bool = True
     block_consent_modals: bool = True
+    hybrid: bool = False  # If True, use HybridBrowserFactory (BQL + Playwright via CDP)
 
 
 class RuntimeSettings(BaseModel):

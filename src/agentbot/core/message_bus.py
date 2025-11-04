@@ -13,7 +13,7 @@ from .models import EventEnvelope, EventType
 Subscriber = Callable[[EventEnvelope], Awaitable[None]]
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class _Subscription:
     queue: "asyncio.Queue[EventEnvelope]"
     session_filter: Optional[str]
@@ -76,14 +76,20 @@ class MessageBus:
         """Stop accepting new events and unblock subscribers."""
         self._closed = True
         async with self._lock:
-            for subscriptions in self._topics.values():
-                for subscription in subscriptions:
-                    subscription.queue.put_nowait(
-                        EventEnvelope(
-                            type=EventType.RUNTIME_ALERT,
-                            session_id="*",
-                            payload={"message": "MessageBus closed"},
-                        )
-                    )
+            topics = list(self._topics.items())
             self._topics.clear()
-
+        for event_type, subscriptions in topics:
+            sentinel = EventEnvelope(
+                type=event_type,
+                session_id="*",
+                payload={"message": "MessageBus closed", "__bus_closed__": True},
+            )
+            for subscription in subscriptions:
+                try:
+                    subscription.queue.put_nowait(sentinel)
+                except asyncio.QueueFull:
+                    try:
+                        subscription.queue.get_nowait()
+                    except asyncio.QueueEmpty:
+                        pass
+                    subscription.queue.put_nowait(sentinel)

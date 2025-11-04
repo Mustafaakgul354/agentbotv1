@@ -34,7 +34,7 @@
 - Implements:
   - `login_if_needed()`
   - `check_availability()`
-  - `heartbeat()` (for metrics & observability)
+  - `heartbeat()` (implemented via `EventType.HEARTBEAT` events for metrics & observability)
 - On detecting availability, publishes an `AppointmentAvailable` message with session context.
 
 ### 5. BookingAgent (Per-User)
@@ -51,13 +51,50 @@
 - `EmailInboxService`: pluggable provider to read verification codes (IMAP, API).
 - `HttpClient` / `BrowserClient`: wrapper around `httpx`, `requests`, or Playwright.
 - `FormFiller`: maps schema definitions to DOM selectors.
-- `AuditLogger`: structured logs for observability & replay.
+- `AuditLogger`: structured logs for observability & replay (JSON Lines stored under `artifacts/` by default).
+- **`HybridBrowserFactory`** (optional): combines BQL stealth features (CAPTCHA solving, proxy rotation) with Playwright's powerful automation API via Chrome DevTools Protocol (CDP).
 
 ### 7. Planning & Scheduling
 - `AgentPlanner` coordinates retries, backoff, and appointment preference prioritisation.
 - Maintains per-session finite-state machine (FSM) covering states:
   - `Idle` → `Monitoring` → `Claiming` → `Booking` → `Booked` / `Failed`
 - FSM ensures resumed agents recover safely after restarts.
+
+## Browser Selection
+
+The system supports three browser automation modes, selectable via configuration:
+
+| Mode | Factory | Use Case | Key Features |
+|------|---------|----------|--------------|
+| **Playwright** | `BrowserFactory` | Local dev, testing | Direct browser control, full API |
+| **BrowserQL** | `BrowserQLFactory` | REST/GraphQL API only | Stealth (CAPTCHA solving, proxy), no local browser |
+| **Hybrid** (recommended) | `HybridBrowserFactory` | Production sites with detection | BQL stealth initialization + Playwright control via CDP |
+
+### Hybrid Mode Details
+
+The hybrid mode initializes a browser session with BQL's stealth features (CAPTCHA solving, proxy rotation, humanlike behavior), then connects Playwright via Chrome DevTools Protocol (CDP) for rich automation:
+
+```
+BQL Session Init (Stealth)
+        ↓
+Get browserWSEndpoint
+        ↓
+chromium.connectOverCDP(endpoint)
+        ↓
+Playwright Control (Full API)
+```
+
+This combines:
+- **BQL advantages**: residential proxies, CAPTCHA solving, anti-detection
+- **Playwright advantages**: screenshots, complex selectors, network interception, flexibility
+
+Enabled via config:
+```yaml
+browserql:
+  endpoint: "https://production-sfo.browserless.io/chrome/bql"
+  token: "your-token"
+  hybrid: true
+```
 
 ## Data Flow
 1. `AgentRuntime` boots, loads user sessions from configuration.
@@ -70,7 +107,7 @@
 7. Booking agent publishes `BookingResult`; runtime logs and optionally notifies user.
 
 ## Security & Compliance Considerations
-- Store secrets encrypted; never log sensitive data.
+- Store secrets encrypted; the session store encrypts records with Fernet when `AGENTBOT_SESSION_KEY` is configured.
 - Rate-limit requests; conform to website's terms of service.
 - Use rotating proxies or IP pools cautiously and lawfully.
 - Audit trail for bookings and agent actions.
@@ -91,4 +128,3 @@ The Playwright-based provider for VFS TR/EN/FRA lives at `agentbot/site/vfs_fra_
 - Login (email/password → OTP via IMAP)
 - Navigation to `application-detail` and `book-appointment`
 - DOM-based slot probing and booking interaction
-

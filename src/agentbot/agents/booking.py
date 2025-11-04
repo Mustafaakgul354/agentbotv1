@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Optional, Protocol
 
 from agentbot.agents.base import BaseAgent
 from agentbot.core.message_bus import MessageBus
@@ -15,7 +15,9 @@ from agentbot.core.models import (
     EventEnvelope,
     EventType,
 )
+from agentbot.core.planner import AgentPlanner
 from agentbot.data.session_store import SessionRecord
+from agentbot.services.audit_logger import AuditLogger
 
 
 class BookingProvider(Protocol):
@@ -36,18 +38,27 @@ class BookingAgent(BaseAgent):
         session_record: SessionRecord,
         provider: BookingProvider,
         lock_manager: LockManager | None = None,
+        planner: AgentPlanner | None = None,
+        audit_logger: AuditLogger | None = None,
     ) -> None:
         super().__init__(config, message_bus=message_bus)
         self._record = session_record
         self._provider = provider
         self._locks = lock_manager
+        self._planner = planner
+        self._audit = audit_logger
 
     async def run(self) -> None:
         async for envelope in self.message_bus.subscribe(
             EventType.APPOINTMENT_AVAILABLE, session_id=self.config.session_id
         ):
+            payload = envelope.payload or {}
+            if payload.get("__bus_closed__"):
+                break
+
             if self.should_stop():
                 break
+
             slot = AppointmentAvailability.model_validate(envelope.payload)
             booking_request = AppointmentBookingRequest(
                 session_id=self.config.session_id,
@@ -61,6 +72,8 @@ class BookingAgent(BaseAgent):
                 slot.slot_id,
                 slot.slot_time,
             )
+            if self._planner:
+                self._planner.on_booking_attempt(self.config.session_id)
             try:
                 # Ensure single booking per session via distributed lock if available
                 if self._locks:
@@ -80,14 +93,25 @@ class BookingAgent(BaseAgent):
                     message=str(exc),
                 )
 
+            result_payload = result.model_dump(mode="json")
             envelope = EventEnvelope(
                 type=EventType.BOOKING_RESULT,
                 session_id=self.config.session_id,
-                payload=result.model_dump(mode="json"),
+                payload=result_payload,
             )
             await self.message_bus.publish(envelope)
             if result.success:
                 self.logger.info("Successfully booked slot %s", slot.slot_id)
             else:
                 self.logger.warning("Booking failed for slot %s: %s", slot.slot_id, result.message)
-
+            if self._planner:
+                self._planner.on_booking_result(self.config.session_id, result)
+            if self._audit:
+                try:
+                    await self._audit.log(
+                        event="booking_result",
+                        session_id=self.config.session_id,
+                        payload=result_payload,
+                    )
+                except Exception:
+                    self.logger.debug("Failed to persist audit log", exc_info=True)

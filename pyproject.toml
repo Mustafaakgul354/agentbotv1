@@ -19,7 +19,8 @@ dependencies = [
   "PyYAML>=6.0,<7.0",
   "fastapi>=0.104,<1",
   "uvicorn[standard]>=0.23,<1",
-  "redis>=4.6,<6"
+  "redis>=4.6,<6",
+  "cryptography>=41,<43"
 ]
 readme = "README.md"
 

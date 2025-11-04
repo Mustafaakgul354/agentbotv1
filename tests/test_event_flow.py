@@ -15,7 +15,8 @@ from agentbot.core.models import (
     AppointmentBookingResult,
     EventType,
 )
-from agentbot.data.session_store import SessionRecord
+from agentbot.core.planner import AgentPlanner, SessionState
+from agentbot.data.session_store import SessionRecord, SessionStore
 
 
 class DummyAvail(AvailabilityProvider):
@@ -51,13 +52,26 @@ async def test_monitor_to_booking_flow():
         user_id="u-1",
         email="e@example.com",
     )
-    config = AgentConfig(session_id=record.session_id, user_id=record.user_id, poll_interval_seconds=1)
+    config = AgentConfig(session_id=record.session_id, user_id=record.user_id, poll_interval_seconds=5)
 
-    monitor = MonitorAgent(config, message_bus=bus, session_record=record, provider=DummyAvail())
-    booking = BookingAgent(config, message_bus=bus, session_record=record, provider=DummyBook())
+    planner = AgentPlanner()
+    monitor = MonitorAgent(
+        config,
+        message_bus=bus,
+        session_record=record,
+        provider=DummyAvail(),
+        planner=planner,
+    )
+    booking = BookingAgent(
+        config,
+        message_bus=bus,
+        session_record=record,
+        provider=DummyBook(),
+        planner=planner,
+    )
 
-    await monitor.start()
     await booking.start()
+    await monitor.start()
 
     # Wait for booking result event
     async def wait_result():
@@ -66,7 +80,26 @@ async def test_monitor_to_booking_flow():
 
     envelope = await asyncio.wait_for(wait_result(), timeout=5)
     assert envelope.payload.get("success") is True
+    assert planner.get_state(record.session_id) is SessionState.BOOKED
 
-    await monitor.stop()
+    await bus.close()
     await booking.stop()
+    await monitor.stop()
 
+
+@pytest.mark.asyncio
+async def test_session_store_encryption(tmp_path):
+    from cryptography.fernet import Fernet
+
+    key = Fernet.generate_key().decode()
+    path = tmp_path / "sessions.enc"
+    store = SessionStore(path, encryption_key=key)
+    record = SessionRecord(session_id="sess", user_id="user", email="test@example.com")
+    await store.upsert(record)
+
+    raw = path.read_bytes()
+    assert b"test@example.com" not in raw  # ciphertext should hide plain data
+
+    restored = SessionStore(path, encryption_key=key)
+    sessions = await restored.list_sessions()
+    assert sessions[0].email == "test@example.com"

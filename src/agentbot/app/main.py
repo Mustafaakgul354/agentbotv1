@@ -7,7 +7,7 @@ from pathlib import Path
 import os
 
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agentbot.agents.booking import BookingAgent
 from agentbot.agents.monitor import MonitorAgent
@@ -17,7 +17,7 @@ from agentbot.core.locks_redis import RedisLockManager
 from agentbot.core.runtime import AgentRuntime
 from agentbot.core.settings import RuntimeSettings
 from agentbot.data.session_store import SessionRecord, SessionStore
-from agentbot.services import EmailInboxService, FormFiller, HttpClient
+from agentbot.services import AuditLogger, EmailInboxService, FormFiller, HttpClient
 from agentbot.services.form_filler import FieldMapping
 from agentbot.utils.logging import get_logger
 
@@ -28,6 +28,16 @@ logger = get_logger("AgentAPI")
 class AppState(BaseModel):
     started: bool
     sessions: int
+
+
+class NewSession(BaseModel):
+    session_id: str
+    user_id: str
+    email: str
+    credentials: dict
+    profile: dict
+    preferences: dict = Field(default_factory=dict)
+    metadata: dict = Field(default_factory=dict)
 
 
 def _load_form_mapping(path: Path | None) -> FormFiller:
@@ -68,11 +78,13 @@ def create_app(config_path: Path) -> FastAPI:
     except Exception as exc:
         logger.warning("LLM disabled: %s", exc)
 
-    runtime = AgentRuntime(session_store=session_store, message_bus=message_bus)
+    audit_logger = AuditLogger()
+    runtime = AgentRuntime(session_store=session_store, message_bus=message_bus, audit_logger=audit_logger)
 
     # Site providers: default to VFS Playwright or BrowserQL
     from agentbot.browser.play import BrowserFactory
     from agentbot.browser.browserql import BrowserQLFactory
+    from agentbot.browser.hybrid import HybridBrowserFactory
     from agentbot.site.vfs_fra_flow import (
         VfsAvailabilityProvider,
         VfsBookingProvider,
@@ -82,15 +94,30 @@ def create_app(config_path: Path) -> FastAPI:
     if settings.browserql and settings.browserql.endpoint:
         endpoint = str(settings.browserql.endpoint)
         token = settings.browserql.token or os.getenv("BROWSERQL_TOKEN")
-        browser = BrowserQLFactory(
-            endpoint=endpoint,
-            token=token,
-            proxy=settings.browserql.proxy,
-            proxy_country=settings.browserql.proxy_country,
-            humanlike=settings.browserql.humanlike,
-            block_consent_modals=settings.browserql.block_consent_modals,
-        )
-        logger.info("Using BrowserQL with endpoint: %s", endpoint)
+        
+        # Check for hybrid mode (BQL + Playwright via CDP)
+        use_hybrid = settings.browserql.hybrid or os.getenv("BROWSERQL_HYBRID", "false").lower() == "true"
+        
+        if use_hybrid:
+            browser = HybridBrowserFactory(
+                bql_endpoint=endpoint,
+                token=token,
+                proxy=settings.browserql.proxy,
+                proxy_country=settings.browserql.proxy_country,
+                humanlike=settings.browserql.humanlike,
+                block_consent_modals=settings.browserql.block_consent_modals,
+            )
+            logger.info("Using Hybrid mode (BQL stealth + Playwright): %s", endpoint)
+        else:
+            browser = BrowserQLFactory(
+                endpoint=endpoint,
+                token=token,
+                proxy=settings.browserql.proxy,
+                proxy_country=settings.browserql.proxy_country,
+                humanlike=settings.browserql.humanlike,
+                block_consent_modals=settings.browserql.block_consent_modals,
+            )
+            logger.info("Using BrowserQL mode: %s", endpoint)
     else:
         browser = BrowserFactory(headless=False)
         logger.info("Using Playwright BrowserFactory")
@@ -99,7 +126,13 @@ def create_app(config_path: Path) -> FastAPI:
 
     def monitor_factory(config, record: SessionRecord) -> MonitorAgent:
         provider = VfsAvailabilityProvider(browser, email_service=email_service, llm=llm)
-        return MonitorAgent(config, message_bus=message_bus, session_record=record, provider=provider)
+        return MonitorAgent(
+            config,
+            message_bus=message_bus,
+            session_record=record,
+            provider=provider,
+            planner=runtime.planner,
+        )
 
     def booking_factory(config, record: SessionRecord) -> BookingAgent:
         provider = VfsBookingProvider(browser, email_service=email_service, form_filler=form_filler)
@@ -109,6 +142,8 @@ def create_app(config_path: Path) -> FastAPI:
             session_record=record,
             provider=provider,
             lock_manager=lock_manager,
+            planner=runtime.planner,
+            audit_logger=audit_logger,
         )
 
     app = FastAPI(title="AgentBot Runtime")
@@ -123,19 +158,30 @@ def create_app(config_path: Path) -> FastAPI:
         await runtime.stop()
         await http_client.close_all()
 
+    @app.get("/")
+    async def root() -> dict:
+        """Root endpoint with API information."""
+        sessions = len(await session_store.list_sessions())
+        return {
+            "name": "AgentBot Runtime API",
+            "version": "1.0.0",
+            "status": "running",
+            "sessions": sessions,
+            "endpoints": {
+                "health": "/health",
+                "api_docs": "/docs",
+                "api_redoc": "/redoc",
+                "sessions": "/sessions",
+                "control_start": "/control/start",
+                "control_stop": "/control/stop",
+            },
+            "message": "AgentBot is running. Visit /docs for API documentation."
+        }
+
     @app.get("/health", response_model=AppState)
     async def health() -> AppState:
         sessions = len(await session_store.list_sessions())
         return AppState(started=True, sessions=sessions)
-
-    class NewSession(BaseModel):
-        session_id: str
-        user_id: str
-        email: str
-        credentials: dict
-        profile: dict
-        preferences: dict = {}
-        metadata: dict = {}
 
     @app.post("/sessions")
     async def upsert_session(payload: NewSession) -> dict:
@@ -160,5 +206,3 @@ def create_app(config_path: Path) -> FastAPI:
 
 config_env = os.getenv("AGENTBOT_CONFIG", "config/runtime.example.yml")
 app = create_app(Path(config_env))
-
-

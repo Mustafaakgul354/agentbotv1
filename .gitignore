@@ -41,6 +41,7 @@ venv/
 env/
 .env
 .env.*
+!.env.example
 
 # IDE/editor
 .idea/

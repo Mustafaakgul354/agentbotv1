@@ -3,6 +3,7 @@ availability_endpoint: "/api/appointments/availability"
 booking_endpoint: "/api/appointments/request-code"
 submit_endpoint: "/api/appointments/submit-booking"
 session_store_path: "config/session_store.example.json"
+# Set AGENTBOT_SESSION_KEY in your environment to enable Fernet encryption for the session store.
 poll_interval_seconds: 30
 email:
   host: "imap.example.com"
@@ -20,3 +21,6 @@ form_mapping_path: "config/form_mapping.example.yml"
 #   proxy_country: "tr"  # optional: country code (e.g., "tr", "us")
 #   humanlike: true  # optional: enable human-like behavior
 #   block_consent_modals: true  # optional: auto-handle consent modals
+#   hybrid: false  # optional: use Hybrid mode (BQL + Playwright via CDP) for stealth + flexibility
+#
+# For hybrid mode via environment variable: export BROWSERQL_HYBRID=true

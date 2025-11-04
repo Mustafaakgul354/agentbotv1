@@ -1,9 +1,10 @@
-base_url: "https://visa.vfsglobal.com"
-availability_endpoint: "/tur/en/fra/book-appointment"  # navigational; DOM parse
-booking_endpoint: "/tur/en/fra/book-appointment"       # navigational; DOM submit
-submit_endpoint: "/tur/en/fra/book-appointment"        # navigational; DOM submit
+base_url: "https://target-website.example"
+availability_endpoint: "/api/appointments/availability"
+booking_endpoint: "/api/appointments/request-code"
+submit_endpoint: "/api/appointments/submit-booking"
 session_store_path: "config/session_store.example.json"
-poll_interval_seconds: 25
+# Set AGENTBOT_SESSION_KEY in your environment to enable Fernet encryption for the session store.
+poll_interval_seconds: 30
 email:
   host: "imap.example.com"
   port: 993
@@ -11,5 +12,12 @@ email:
   password: "change-me"
   folder: "INBOX"
   use_ssl: true
-form_mapping_path: "config/form_mapping.vfs.yml"
-
+form_mapping_path: "config/form_mapping.example.yml"
+# Optional: BrowserQL configuration (uncomment to use BrowserQL instead of Playwright)
+# browserql:
+#   endpoint: "https://production-sfo.browserless.io/chrome/bql"
+#   token: "your-browserless-token"  # or use BROWSERQL_TOKEN env var
+#   proxy: "residential"  # optional: "residential" or "datacenter"
+#   proxy_country: "tr"  # optional: country code (e.g., "tr", "us")
+#   humanlike: true  # optional: enable human-like behavior
+#   block_consent_modals: true  # optional: auto-handle consent modals

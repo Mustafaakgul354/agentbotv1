@@ -12,7 +12,9 @@ if TYPE_CHECKING:
 
 from agentbot.core.message_bus import MessageBus
 from agentbot.core.models import AgentConfig
+from agentbot.core.planner import AgentPlanner
 from agentbot.data.session_store import SessionRecord, SessionStore
+from agentbot.services.audit_logger import AuditLogger
 from agentbot.utils.logging import get_logger
 
 
@@ -34,10 +36,14 @@ class AgentRuntime:
         *,
         session_store: SessionStore,
         message_bus: Optional[MessageBus] = None,
+        planner: Optional[AgentPlanner] = None,
+        audit_logger: Optional[AuditLogger] = None,
     ) -> None:
         self.session_store = session_store
         self.message_bus = message_bus or MessageBus()
         self.logger = get_logger("AgentRuntime")
+        self.planner = planner or AgentPlanner()
+        self.audit_logger = audit_logger
         self._bundles: List[AgentBundle] = []
         self._started = False
         self._lock = asyncio.Lock()
@@ -99,4 +105,3 @@ class AgentRuntime:
         finally:
             await self.stop()
             await self.message_bus.close()
-
