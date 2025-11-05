@@ -29,10 +29,10 @@ from .turnstile import await_turnstile_if_present
 from agentbot.utils.artifacts import save_screenshot
 
 
-LOGIN_URL = "https://visa.vfsglobal.com/tur/en/fra/login"
-DASHBOARD_URL = "https://visa.vfsglobal.com/tur/en/fra/dashboard"
-APPT_DETAIL_URL = "https://visa.vfsglobal.com/tur/en/fra/application-detail"
-BOOK_URL = "https://visa.vfsglobal.com/tur/en/fra/book-appointment"
+LOGIN_URL = "https://visa.vfsglobal.com/tur/tr/fra/login"
+DASHBOARD_URL = "https://visa.vfsglobal.com/tur/tr/fra/dashboard"
+APPT_DETAIL_URL = "https://visa.vfsglobal.com/tur/tr/fra/application-detail"
+BOOK_URL = "https://visa.vfsglobal.com/tur/tr/fra/book-appointment"
 
 
 logger = get_logger("VFSFlow")
@@ -40,10 +40,32 @@ logger = get_logger("VFSFlow")
 
 @dataclass
 class VfsSelectors:
-    email: str = 'input[type="email"]'
-    password: str = 'input[type="password"]:below(:text("Password"))'
-    sign_in: str = 'button:has-text("Sign In")'
+    """VFS site selectors using XPath and CSS.
+    
+    ⚠️  UYARI: XPath'ler hassas olabilir ve sayfa güncellendiğinde kırılabilir.
+    Sayfa yapısı değiştiğinde bu selector'ları test edin ve güncelleyin.
+    
+    WARNING: XPaths may be sensitive and can break if the page structure is updated.
+    Test and update these selectors when the page structure changes.
+    """
+    # Login layout (XPath selectors derived from latest Turkish locale markup)
+    login_root: str = "xpath=//app-root[@class='d-flex flex-column min-vh-100']"
+    login_container: str = "xpath=//app-login[contains(@class, 'container py-15 py-md-30')]"
+    login_card: str = "xpath=//mat-card[contains(@class, 'mat-mdc-card mdc-card px-md-40 py-md-40')]"
+    login_form: str = "xpath=//form[@novalidate and @autocomplete='new-form']"
+    login_title: str = "xpath=//h1[contains(text(), 'Oturum Aç')]"
+    login_email_wrapper: str = "xpath=//mat-form-field[.//mat-label[text()='E-posta*']]"
+    login_password_wrapper: str = "xpath=//mat-form-field[.//mat-label[text()='Şifre*']]"
+    cloudflare_success: str = "xpath=//div[(contains(@class, 'cloudflare-success') or contains(text(), 'Başarılı!'))]"
+
+    # Login inputs and actions
+    email: str = "xpath=//input[@id='Email' and @type='email']"
+    password: str = "xpath=//input[@id='Password' and @type='password']"
+    sign_in: str = "xpath=//button[normalize-space(text())='Oturum Aç']"
+    sign_in_fallback: str = 'button:has-text("Oturum Aç"), button:has-text("Sign In")'
     otp: str = 'input[autocomplete="one-time-code"], input[type="password"]'
+
+    # Misc navigation (CSS maintained where XPath not provided)
     start_booking: str = 'button:has-text("Start New Booking"), a:has-text("Start New Booking")'
     app_centre: str = 'label:has-text("Choose your Application Centre") ~ *'
     category: str = 'label:has-text("Choose your appointment category") ~ *'
@@ -64,10 +86,28 @@ class VfsAvailabilityProvider(AvailabilityProvider):
         creds = session.credentials
         async with self.browser.page(session.session_id) as page:
             await page.goto(LOGIN_URL)
+            
+            # Cloudflare challenge detection and bypass with BQL stealth
+            # Eğer Cloudflare challenge tetiklenirse, BQL stealth ile aşın
+            # await_turnstile_if_present automatically detects and handles challenges
             await await_turnstile_if_present(page, timeout=8000)
+            
+            try:
+                await page.wait_for_selector(VfsSelectors.login_card, timeout=20000)
+            except Exception:
+                await page.wait_for_selector(VfsSelectors.email, timeout=20000)
+            try:
+                await page.wait_for_selector(VfsSelectors.cloudflare_success, timeout=5000)
+            except Exception:
+                pass  # Cloudflare success banner not always shown
             await page.fill(VfsSelectors.email, creds.get("username", ""))
             await page.fill(VfsSelectors.password, creds.get("password", ""))
-            await page.click(VfsSelectors.sign_in)
+            try:
+                await page.click(VfsSelectors.sign_in)
+            except Exception:
+                await page.click(VfsSelectors.sign_in_fallback)
+            
+            # Cloudflare challenge may appear after login submit - bypass with BQL stealth
             await await_turnstile_if_present(page, timeout=12000)
             await save_screenshot(page, session.session_id, "after-login-submit")
 
@@ -82,7 +122,10 @@ class VfsAvailabilityProvider(AvailabilityProvider):
                 )
                 if code:
                     await page.fill(VfsSelectors.otp, code)
-                    await page.click(VfsSelectors.sign_in)
+                    try:
+                        await page.click(VfsSelectors.sign_in)
+                    except Exception:
+                        await page.click(VfsSelectors.sign_in_fallback)
             except Exception:
                 pass  # already logged in or bypassed
 
@@ -201,7 +244,7 @@ class VfsBookingProvider(BookingProvider):
 
             # Step 2: fill applicant details (optional, if required)
             try:
-                await page.goto("https://visa.vfsglobal.com/tur/en/fra/your-details")
+                await page.goto("https://visa.vfsglobal.com/tur/tr/fra/your-details")
                 if self.form_filler:
                     await self.form_filler.populate(page, session.profile)
                 # Optional passport upload if provided
@@ -243,5 +286,3 @@ class VfsBookingProvider(BookingProvider):
                     slot=request.slot,
                     message=str(exc),
                 )
-
-
