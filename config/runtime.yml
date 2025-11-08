@@ -1,23 +1,17 @@
-base_url: "https://target-website.example"
+base_url: "https://visa.vfsglobal.com/tur/tr/fra/login"
 availability_endpoint: "/api/appointments/availability"
 booking_endpoint: "/api/appointments/request-code"
 submit_endpoint: "/api/appointments/submit-booking"
 session_store_path: "config/session_store.example.json"
 # Set AGENTBOT_SESSION_KEY in your environment to enable Fernet encryption for the session store.
 poll_interval_seconds: 30
-email:
-  host: "imap.example.com"
-  port: 993
-  username: "user@example.com"
-  password: "change-me"
-  folder: "INBOX"
-  use_ssl: true
-form_mapping_path: "config/form_mapping.example.yml"
+
 # Optional: BrowserQL configuration (uncomment to use BrowserQL instead of Playwright)
-# browserql:
-#   endpoint: "https://production-sfo.browserless.io/chrome/bql"
-#   token: "your-browserless-token"  # or use BROWSERQL_TOKEN env var
-#   proxy: "residential"  # optional: "residential" or "datacenter"
-#   proxy_country: "tr"  # optional: country code (e.g., "tr", "us")
-#   humanlike: true  # optional: enable human-like behavior
-#   block_consent_modals: true  # optional: auto-handle consent modals
+browserql:
+  endpoint: "https://production-sfo.browserless.io/chrome/bql"
+  token: "1SPWyKRVc5fkSeke2e9059c7b6aeb1603ac4d80f3168161d6"  # or use BROWSERQL_TOKEN env var
+  proxy: "residential"  # "residential" or "datacenter"
+  proxy_country: "tr"  # country code (e.g., "tr", "us")
+  humanlike: true  # enable human-like behavior
+  block_consent_modals: true  # auto-handle consent modals
+  hybrid: true  # use Hybrid mode (BQL + Playwright via CDP) for stealth + flexibility
