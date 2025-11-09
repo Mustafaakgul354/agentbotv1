@@ -136,7 +136,39 @@ class VfsAvailabilityProvider(AvailabilityProvider):
         async with self.browser.page(session.session_id) as page:
             await page.goto(BOOK_URL)
 
-            # Try to capture JSON responses that include slots
+            # PRIMARY METHOD: LLM-based analysis (if available)
+            if self.llm:
+                logger.info("Using LLM as primary method for slot detection")
+                try:
+                    body_text = await page.inner_text("body")
+                    snippet = body_text[:8000]  # Increased for better context
+                    answer = await self.llm.generate(
+                        system=(
+                            "You are an appointment availability analyzer. "
+                            "Analyze the page text and determine if appointment slots are available. "
+                            "If no appointments are available, respond with 'NO_SLOTS'. "
+                            "If appointments might be available (you see calendar, time slots, or booking interface), respond with 'SLOTS_AVAILABLE'. "
+                            "Be decisive and clear."
+                        ),
+                        user=(
+                            "Does this page show available appointment slots or a booking calendar?\n\n"
+                            f"Page content:\n{snippet}"
+                        ),
+                        temperature=0.0,
+                    )
+                    logger.info(f"LLM response: {answer}")
+                    
+                    # If LLM indicates no slots, return empty immediately
+                    if "NO_SLOTS" in answer.upper() or answer.lower().strip().startswith("no"):
+                        logger.info("LLM determined: No slots available")
+                        return []
+                    
+                    # If LLM indicates slots might be available, continue with DOM parsing
+                    logger.info("LLM determined: Slots might be available, proceeding with DOM analysis")
+                except Exception as exc:
+                    logger.warning(f"LLM analysis failed: {exc}, falling back to traditional methods")
+
+            # FALLBACK 1: Try to capture JSON responses that include slots
             try:
                 response = await page.wait_for_response(
                     lambda r: ("calendar" in r.url or "slot" in r.url) and r.status == 200,
@@ -164,31 +196,14 @@ class VfsAvailabilityProvider(AvailabilityProvider):
                             )
                         )
                     if slots:
+                        logger.info(f"Found {len(slots)} slots via JSON API")
                         return slots
                 except Exception:
                     pass
             except Exception:
                 pass
 
-            # Optional LLM-assisted classification when no structured data is found
-            if not slots and self.llm:
-                try:
-                    body_text = await page.inner_text("body")
-                    snippet = body_text[:4000]
-                    answer = await self.llm.generate(
-                        system="You classify appointment pages.",
-                        user=(
-                            "Answer strictly 'yes' or 'no'. Does this text explicitly say no appointments are available right now?\n\n"
-                            + snippet
-                        ),
-                        temperature=0.0,
-                    )
-                    if answer.lower().strip().startswith("yes"):
-                        return []
-                except Exception:
-                    pass
-
-            # Fallback: parse DOM
+            # FALLBACK 2: parse DOM
             try:
                 await page.wait_for_selector(VfsSelectors.calendar_cell, timeout=10000)
                 # Try first enabled date cell
@@ -210,6 +225,7 @@ class VfsAvailabilityProvider(AvailabilityProvider):
                             extra={"dom_index": idx},
                         )
                     )
+                logger.info(f"Found {len(slots)} slots via DOM parsing")
             except Exception:
                 logger.debug("No available slots detected via DOM")
         return slots
