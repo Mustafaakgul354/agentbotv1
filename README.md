@@ -7,6 +7,25 @@ AgentBot is a Python framework for building coordinated monitor/booking agents t
 
 Agents communicate through an in-memory message bus by default; adapters make it easy to swap in Redis or another broker when scaling out.
 
+## Examples
+
+### Hybrid Browser Mode Examples
+
+See `scripts/hybrid_example.py` for comprehensive examples of using BrowserQL Hybrid Mode:
+
+```bash
+# Edit the script to add your Browserless token
+python scripts/hybrid_example.py
+```
+
+Features demonstrated:
+- Basic BrowserQL + Playwright integration
+- Cloudflare verification
+- LiveURL monitoring and debugging
+- Complex multi-step workflows
+- Screenshot capture
+- Error handling
+
 ## Quick Start
 
 1. **Install dependencies**
@@ -32,6 +51,46 @@ Agents communicate through an in-memory message bus by default; adapters make it
 
 The CLI spins up monitor/booking agents for every session in your store and runs them until interrupted.
 
+## 🔍 Debugging Login Issues
+
+If you encounter timeout errors during login, use the debug script:
+
+```bash
+python scripts/debug_login.py
+```
+
+This will:
+- Open the browser in visible mode so you can see what's happening
+- Take screenshots at each step
+- Save page HTML for inspection
+- Log all input elements found on the page
+
+See [DEBUG_LOGIN.md](DEBUG_LOGIN.md) for detailed troubleshooting guide.
+
+## Headless Playwright in Docker/CI
+
+Chromium inside minimal containers does not have access to an X server, which leads to errors such as `Missing X server or $DISPLAY` or `The platform failed to initialize`. AgentBot now launches Playwright in headless mode by default and exposes two environment variables you can tune:
+
+```env
+# Keep this true inside Docker/CI (default)
+AGENTBOT_HEADLESS=true
+
+# Optional: append extra Chromium flags (space-delimited)
+AGENTBOT_BROWSER_ARGS="--disable-dev-shm-usage --disable-gpu"
+```
+
+Setting `AGENTBOT_HEADLESS=false` re-enables headed Chromium for local debugging, while `AGENTBOT_BROWSER_ARGS` lets you add the common stability flags recommended for containers (`--disable-dev-shm-usage`, `--disable-gpu`, `--disable-setuid-sandbox`, etc.). These variables are read by both the FastAPI app (Docker deployment) and the CLI runner.
+
+## Playwright Stealth (playwright-extra equivalent)
+
+Install AgentBot with the browser extra to pull in [`playwright-stealth`](https://github.com/AtuboDad/playwright-stealth):
+
+```bash
+pip install -e '.[browser]'
+```
+
+`BrowserFactory` automatically injects the stealth scripts (mirroring `playwright-extra`'s stealth plugin) into every Playwright page, masking `navigator.webdriver`, tweaking Chrome fingerprints, and reducing bot-detection signals. The hook is optional—if the package is missing, AgentBot falls back to vanilla Playwright.
+
 ## Optional: Enable BrowserQL (Browserless.io)
 
 To use BrowserQL instead of Playwright for browser automation, configure BrowserQL settings in your `config/runtime.yml`:
@@ -39,7 +98,7 @@ To use BrowserQL instead of Playwright for browser automation, configure Browser
 ```yaml
 browserql:
   endpoint: "https://production-sfo.browserless.io/chrome/bql"
-  token: "your-browserless-token"  # or use BROWSERQL_TOKEN env var
+  token: ""  # or use BROWSERQL_TOKEN env var
   proxy: "residential"  # optional: "residential" or "datacenter"
   proxy_country: "tr"  # optional: country code for proxy
   humanlike: true  # optional: enable human-like behavior
@@ -119,15 +178,17 @@ async with browser.page(session_id) as page:
     # ✅ Flexible: Full Playwright API available
     
     # Navigate (protected by BQL's stealth)
-    await page.goto("https://visa.vfsglobal.com/tur/en/fra/login")
+    await page.goto("https://visa.vfsglobal.com/tur/tr/fra/login", wait_until="domcontentloaded")
+    await page.wait_for_load_state("networkidle", timeout=30000)
+    await page.wait_for_selector("xpath=//div[contains(text(), 'Başarılı!')]", timeout=5000)
     
-    # Fill and submit login
-    await page.fill("#Email", credentials["username"])
-    await page.fill("#Password", credentials["password"])
-    await page.click("button:has-text('Sign In')")
+    # Fill and submit login (with fallback selectors)
+    await page.fill("xpath=//input[@id='Email']", credentials["username"])
+    await page.fill("xpath=//input[@id='Password']", credentials["password"])
+    await page.click("xpath=//button[normalize-space(text())='Oturum Aç']")
     
     # Wait for dashboard (Playwright feature)
-    await page.wait_for_url("**/dashboard")
+    await page.wait_for_url("**/dashboard", timeout=30000)
     
     # Book appointment
     await page.click("button[data-slot='available']")

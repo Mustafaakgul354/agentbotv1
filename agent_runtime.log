@@ -1,0 +1,12 @@
+2025-11-08 12:43:56 WARNING  2025-11-08 12:43:56 AgentCLI WARNING: No form      
+                             mapping provided; booking provider will send raw   
+                             profile payload.                                   
+                    INFO     2025-11-08 12:43:56 AgentCLI INFO: Using Hybrid    
+                             mode (BQL stealth + Playwright):                   
+                             https://production-sfo.browserless.io/chrome/bql   
+2025-11-08 12:43:56 INFO     2025-11-08 12:43:56 AgentRuntime INFO:             
+                             Bootstrapping agents from session store            
+                    INFO     2025-11-08 12:43:56 AgentRuntime INFO: Starting 0  
+                             agent bundles                                      
+                    INFO     2025-11-08 12:43:56 AgentRuntime INFO: Runtime is  
+                             now running. Press Ctrl+C to exit.                 

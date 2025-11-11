@@ -1,17 +1,38 @@
-base_url: "https://visa.vfsglobal.com/tur/tr/fra/login"
-availability_endpoint: "/api/appointments/availability"
-booking_endpoint: "/api/appointments/request-code"
-submit_endpoint: "/api/appointments/submit-booking"
-session_store_path: "config/session_store.example.json"
+base_url: "https://visa.vfsglobal.com"
+availability_endpoint: "/tur/tr/fra/book-appointment"  # navigational; DOM parse
+booking_endpoint: "/tur/tr/fra/book-appointment"       # navigational; DOM submit
+submit_endpoint: "/tur/tr/fra/book-appointment"        # navigational; DOM submit
+session_store_path: "session_store.json"
 # Set AGENTBOT_SESSION_KEY in your environment to enable Fernet encryption for the session store.
-poll_interval_seconds: 30
+poll_interval_seconds: 25
+email:
+  host: "imap.gmail.com"
+  port: 993
+  username: "ruhsomurenzed@gmail.com"
+  password: "jjhrdayjhsbfrdyd"
+  folder: "INBOX"
+  use_ssl: true
+form_mapping_path: "config/form_mapping.vfs.yml"
+# BrowserQL configuration (ENABLED - Hybrid mode for stealth)
+#browserql:
+#  endpoint: "https://production-sfo.browserless.io/chrome/bql"
+#  # token loaded from BROWSERQL_TOKEN env var
+#  proxy: "residential"
+#  proxy_country: "tr"
+#  humanlike: true
+#  block_consent_modals: true
+#  hybrid: false
+browser:
+  headless: true
+  user_data_root: ".user_data"
+  proxy: "http://brd-customer-hl_b4157da4-zone-residential_proxy1:rsx9x5u7x8fq@brd.superproxy.io:33335"
+  enable_stealth: true
 
-# Optional: BrowserQL configuration (uncomment to use BrowserQL instead of Playwright)
-browserql:
-  endpoint: "https://production-sfo.browserless.io/chrome/bql"
-  token: "1SPWyKRVc5fkSeke2e9059c7b6aeb1603ac4d80f3168161d6"  # or use BROWSERQL_TOKEN env var
-  proxy: "residential"  # "residential" or "datacenter"
-  proxy_country: "tr"  # country code (e.g., "tr", "us")
-  humanlike: true  # enable human-like behavior
-  block_consent_modals: true  # auto-handle consent modals
-  hybrid: true  # use Hybrid mode (BQL + Playwright via CDP) for stealth + flexibility
+humanlike_mouse:
+  enabled: true
+  move_duration_range: [0.4, 1.1]
+  hover_delay_range: [0.07, 0.22]
+  press_duration_range: [0.04, 0.15]
+  curvature_range: [0.1, 0.4]
+  noise: 2.5
+  steps_range: [15, 35]

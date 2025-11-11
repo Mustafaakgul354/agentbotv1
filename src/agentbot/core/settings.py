@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 import yaml
 from pydantic import BaseModel, Field, HttpUrl, ValidationError
@@ -29,6 +29,18 @@ class BrowserQLSettings(BaseModel):
     hybrid: bool = False  # If True, use HybridBrowserFactory (BQL + Playwright via CDP)
 
 
+class HumanlikeMouseSettings(BaseModel):
+    """Configures imperfect cursor motion for Playwright interactions."""
+
+    enabled: bool = True
+    move_duration_range: Tuple[float, float] = (0.45, 0.9)
+    hover_delay_range: Tuple[float, float] = (0.08, 0.2)
+    press_duration_range: Tuple[float, float] = (0.05, 0.12)
+    curvature_range: Tuple[float, float] = (0.12, 0.35)
+    noise: float = 2.2
+    steps_range: Tuple[int, int] = (18, 32)
+
+
 class RuntimeSettings(BaseModel):
     base_url: HttpUrl
     availability_endpoint: str
@@ -39,6 +51,7 @@ class RuntimeSettings(BaseModel):
     email: EmailSettings
     form_mapping_path: Optional[Path] = None
     browserql: Optional[BrowserQLSettings] = None
+    humanlike_mouse: Optional[HumanlikeMouseSettings] = None
 
     @classmethod
     def from_file(cls, path: Path) -> "RuntimeSettings":
@@ -52,4 +65,3 @@ class RuntimeSettings(BaseModel):
         if settings.form_mapping_path and not settings.form_mapping_path.is_absolute():
             settings.form_mapping_path = (path.parent / settings.form_mapping_path).resolve()
         return settings
-

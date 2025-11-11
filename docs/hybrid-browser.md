@@ -60,6 +60,7 @@ browserql:
   humanlike: true                # human-like mouse/keyboard
   block_consent_modals: true     # auto-dismiss cookie banners
   hybrid: true                   # ENABLE HYBRID MODE
+  enable_live_url: false         # Enable LiveURL for monitoring (optional)
 ```
 
 ### Via Environment Variables
@@ -70,6 +71,9 @@ export BROWSERQL_HYBRID=true
 
 # Set token
 export BROWSERQL_TOKEN=your-browserless-token
+
+# Enable LiveURL (optional)
+export BROWSERQL_ENABLE_LIVE_URL=true
 ```
 
 ### Usage in Code
@@ -107,6 +111,13 @@ async with browser.page(session_id) as page:
 ✅ Complex selectors (CSS, XPath, Playwright locators)  
 ✅ Session persistence via cookies  
 
+### Advanced Features
+✅ LiveURL support for monitoring and debugging  
+✅ CDP (Chrome DevTools Protocol) session access  
+✅ Wait for LiveURL completion (user interaction)  
+✅ Real-time session monitoring  
+✅ Screenshot capture with full-page support  
+
 ## Cost Considerations
 
 ### Hybrid Mode Costs
@@ -135,18 +146,20 @@ async def book_appointment(browser, session_id, appointment_slot):
         # ✅ Flexible: Playwright controls the booking flow
         
         # Navigate (via Playwright, protected by BQL stealth)
-        await page.goto("https://visa.vfsglobal.com/tur/en/fra/login")
+        await page.goto("https://visa.vfsglobal.com/tur/tr/fra/login", wait_until="domcontentloaded")
+        await page.wait_for_load_state("networkidle", timeout=30000)
+        await page.wait_for_selector("xpath=//div[contains(text(), 'Başarılı!')]", timeout=5000)
         
-        # Fill login form
-        await page.fill("#Email", credentials["username"])
-        await page.fill("#Password", credentials["password"])
-        await page.click("button:has-text('Sign In')")
+        # Fill login form (with proper timeout and fallbacks)
+        await page.fill("xpath=//input[@id='Email']", credentials["username"])
+        await page.fill("xpath=//input[@id='Password']", credentials["password"])
+        await page.click("xpath=//button[normalize-space(text())='Oturum Aç']")
         
         # Wait for navigation (Playwright feature)
         await page.wait_for_url("**/dashboard", timeout=30000)
         
         # Navigate to booking page
-        await page.goto("https://visa.vfsglobal.com/tur/en/fra/book-appointment")
+        await page.goto("https://visa.vfsglobal.com/tur/tr/fra/book-appointment")
         
         # Book the slot
         await page.click(f"button[data-slot='{appointment_slot.id}']")
@@ -181,6 +194,150 @@ async def book_appointment(browser, session_id, appointment_slot):
 2. Check that `verify(type: "cloudflare")` completes successfully
 3. Try with `humanlike: true` for better success rate
 
+## Hybrid Mode: Connect Puppeteer or Playwright Manually
+
+BrowserQL can hand you a ready-to-use Chrome DevTools endpoint through the `reconnect` mutation. Run the following operation against your `/chrome/bql` endpoint (same token/proxy params you provide to the factory):
+
+```graphql
+mutation HybridSession {
+  goto(url: "https://example.com") {
+    status
+  }
+
+  reconnect(timeout: 30000) {
+    browserWSEndpoint
+  }
+}
+```
+
+Then plug the returned `browserWSEndpoint` into any CDP client:
+
+```python
+from playwright.async_api import async_playwright
+
+async with async_playwright() as pw:
+    browser = await pw.chromium.connect_over_cdp(browserWSEndpoint)
+    page = browser.contexts[0].pages[0]
+```
+
+```ts
+import puppeteer from "puppeteer";
+
+const browser = await puppeteer.connect({ browserWSEndpoint });
+const page = await browser.newPage();
+```
+
+`HybridBrowserFactory` now performs this sequence internally, so your AgentBot codebase gets the same behavior automatically—use the snippet above only if you need to script BrowserQL from another tool.
+
+## Advanced Features
+
+### LiveURL Support
+
+LiveURL allows you to monitor and interact with browser sessions in real-time. This is particularly useful for:
+- Debugging automation flows
+- Allowing end-users to interact with the browser
+- Monitoring session progress
+- Manual intervention when needed
+
+#### Enable LiveURL
+
+```python
+from agentbot.browser.hybrid import HybridBrowserFactory
+
+factory = HybridBrowserFactory(
+    bql_endpoint="https://production-sfo.browserless.io/chrome/bql",
+    token="your-token",
+    proxy="residential",
+    proxy_country="us",
+    humanlike=True,
+    block_consent_modals=True,
+    enable_live_url=True,  # Enable LiveURL
+)
+
+async with factory.page("my-session") as page:
+    # LiveURL is automatically logged when session is created
+    live_url = factory.get_live_url("my-session")
+    print(f"Monitor session at: {live_url}")
+    
+    # Navigate and perform actions
+    await page.goto("https://example.com")
+    
+    # Your automation code here...
+```
+
+#### Wait for LiveURL Completion
+
+You can wait for an end-user to finish interacting via LiveURL before continuing automation:
+
+```python
+async with factory.page("my-session") as page:
+    # Get LiveURL
+    live_url = factory.get_live_url("my-session")
+    
+    # Share LiveURL with end-user (email, SMS, display in UI, etc.)
+    print(f"Please complete the task at: {live_url}")
+    
+    # Wait for user to finish (closes LiveURL)
+    await factory.wait_for_live_complete("my-session")
+    
+    # Continue automation after user is done
+    print(f"User finished! Final URL: {page.url}")
+    
+    # Capture final state
+    await factory.screenshot("my-session", path="final-state.png")
+```
+
+### Cloudflare Verification
+
+Automatically verify Cloudflare challenges during session initialization:
+
+```python
+# Initialize session with Cloudflare verification
+async with factory.page("my-session", verify_cloudflare=True) as page:
+    # Cloudflare challenge is automatically solved during initialization
+    # Navigate to Cloudflare-protected site
+    await page.goto("https://cloudflare-protected-site.com")
+    
+    # Continue with automation...
+```
+
+**Requirements:**
+- Residential proxy must be enabled (`proxy="residential"`)
+- Cloudflare verification does not incur unit costs (free with BQL)
+
+### Screenshot Capture
+
+Capture screenshots at any point during automation:
+
+```python
+# Capture current viewport
+screenshot_bytes = await factory.screenshot("my-session")
+
+# Save to file
+await factory.screenshot("my-session", path="screenshot.png")
+
+# Capture full scrollable page
+await factory.screenshot(
+    "my-session",
+    path="full-page.png",
+    full_page=True
+)
+```
+
+### CDP Session Access
+
+For advanced use cases, you can access the CDP session directly:
+
+```python
+async with factory.page("my-session") as page:
+    # CDP session is automatically created and stored
+    # Access it from the internal session storage if needed
+    
+    # Example: Listen to custom CDP events
+    # (This is handled internally by wait_for_live_complete)
+    pass
+```
+
 ## Advanced: Manual Hybrid Setup
 
 If you need to customize behavior, you can use `HybridBrowserFactory` directly:
@@ -188,7 +345,7 @@ If you need to customize behavior, you can use `HybridBrowserFactory` directly:
 ```python
 from agentbot.browser.hybrid import HybridBrowserFactory
 
-# Create factory
+# Create factory with all options
 factory = HybridBrowserFactory(
     bql_endpoint="https://production-sfo.browserless.io/chrome/bql",
     token="your-token",
@@ -196,16 +353,29 @@ factory = HybridBrowserFactory(
     proxy_country="tr",
     humanlike=True,
     block_consent_modals=True,
+    enable_live_url=True,  # Enable LiveURL monitoring
 )
 
-# Use it
-async with factory.page("session-1") as page:
+# Use it with Cloudflare verification
+async with factory.page("session-1", verify_cloudflare=True) as page:
     # Your code here
-    pass
+    await page.goto("https://example.com")
+    
+    # Capture screenshot
+    await factory.screenshot("session-1", path="screenshot.png")
 
 # Cleanup
 await factory.close_all()
 ```
+
+### Complete Example
+
+See `scripts/hybrid_example.py` for comprehensive examples including:
+- Basic usage
+- Cloudflare verification
+- LiveURL monitoring
+- Complex multi-step workflows
+- Error handling and screenshots
 
 ## Best Practices
 

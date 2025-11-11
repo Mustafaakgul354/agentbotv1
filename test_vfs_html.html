@@ -1,0 +1,64 @@
+<app-root class="d-flex flex-column min-vh-100">
+  <!-- Loader (yüklenme) -->
+  <div id="loader" class="loader-box" style="display: none;">
+    <img class="loader-box-inner" src=".../loader.gif" alt="loader">
+  </div>
+  
+  <!-- Ana Header -->
+  <header class="header-main bg-white sticky-top">
+    <div class="logo">VFS Global</div>
+    <div class="country-selector">Turkey</div>
+  </header>
+  
+  <!-- Ana İçerik: Login Formu -->
+  <app-login class="container py-15 py-md-30">
+    <div class="row no-gutters justify-content-center">
+      <div class="col-12 col-sm-10 col-md-9 col-lg-7 col-xl-6">
+        <mat-card class="mat-mdc-card mdc-card px-md-40 py-md-40">
+          <h1 class="fs-21 fs-sm-24 fs-18-oturum Ac">Oturum Aç</h1>
+          <p>Devam etmek için email adresinizi ve şifrenizi giriniz. * Zorunlu alanları belirtir</p>
+          
+          <!-- Form -->
+          <form novalidate autocomplete="new-form" class="ng-invalid ng-touched ng-dirty">
+            <!-- Email Alanı -->
+            <mat-form-field appearance="outline" class="mat-mdc-form-field mat-form-field-invalid">
+              <mat-label>E-posta*</mat-label>
+              <input matInput id="Email" name="Email" type="email" placeholder="jane.doe@email.com" class="mat-mdc-input-element mdc-text-field__input" aria-invalid="true">
+              <mat-error class="errorMessage">E-posta alanı boş bırakılamaz</mat-error>
+            </mat-form-field>
+            
+            <!-- Şifre Alanı -->
+            <mat-form-field appearance="outline" class="mat-mdc-form-field mat-form-field-invalid">
+              <mat-label>Şifre*</mat-label>
+              <input matInput id="Password" name="Password" type="password" class="mat-mdc-input-element mdc-text-field__input" aria-invalid="true">
+              <mat-error class="errorMessage">Şifre alanı boş bırakılamaz</mat-error>
+            </mat-form-field>
+            
+            <!-- Submit Butonu -->
+            <button mat-raised-button color="primary" type="submit" class="mat-mdc-raised-button mdc-button mat-primary mat-button-base" disabled="true">
+              Oturum Aç
+            </button>
+          </form>
+          
+          <!-- Alt Linkler -->
+          <div class="footer-links">
+            <a>Şifremi Unuttum</a>
+            <a>Bir Hesabım Yok</a>
+            <a>Hesabımı Aktifleştir</a>
+          </div>
+        </mat-card>
+      </div>
+    </div>
+  </app-login>
+  
+  <!-- Footer -->
+  <footer class="footer-bottom mt-auto">
+    <!-- Copyright ve diğer info -->
+  </footer>
+  
+  <!-- Cloudflare CAPTCHA Container (Başarılı geçmiş) -->
+  <app-cloudflare-captcha-container>
+    <div class="cloudflare-success">Başarılı! Cloudflare - Gizlilik + Koşullar</div>
+  </app-cloudflare-captcha-container>
+</app-root>
+

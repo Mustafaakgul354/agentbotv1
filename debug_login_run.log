@@ -1,0 +1,194 @@
+2025-11-11 04:21:59 INFO     2025-11-11 04:21:59 DebugLogin INFO: Testing login 
+                             for session: vfs-fra-session-001                   
+                    INFO     2025-11-11 04:21:59 DebugLogin INFO: User:         
+                             ruhsomurenzed@gmail.com                            
+                    INFO     2025-11-11 04:21:59 DebugLogin INFO: Starting login
+                             flow...                                            
+2025-11-11 04:21:59 INFO     2025-11-11 04:21:59 Browser INFO: Launching        
+                             Chromium context (headless=True,                   
+                             dir=.user_data/vfs-fra-session-001)                
+2025-11-11 04:22:06 INFO     2025-11-11 04:22:06 VFSFlow INFO: Current URL after
+                             navigation:                                        
+                             https://visa.vfsglobal.com/tur/tr/fra/login        
+                    INFO     2025-11-11 04:22:06 VFSFlow INFO: Checking for     
+                             Cloudflare challenge...                            
+                    INFO     2025-11-11 04:22:06 VFSFlow INFO: Waiting for page 
+                             to fully load...                                   
+                    INFO     2025-11-11 04:22:06 VFSFlow INFO: Page reached     
+                             networkidle state                                  
+2025-11-11 04:22:07 INFO     2025-11-11 04:22:07 VFSFlow INFO: Page HTML saved  
+                             to: artifacts/vfs-fra-session-001/page-content.html
+                    INFO     2025-11-11 04:22:07 VFSFlow INFO: Using manual     
+                             selector-based form filling...                     
+                    INFO     2025-11-11 04:22:07 VFSFlow INFO: Found 0 input    
+                             elements on page                                   
+                    INFO     2025-11-11 04:22:07 VFSFlow INFO: Looking for login
+                             form elements...                                   
+2025-11-11 04:22:37 WARNING  2025-11-11 04:22:37 VFSFlow WARNING: ✗ Login card  
+                             not found: Page.wait_for_selector: Timeout 30000ms 
+                             exceeded.                                          
+                             Call log:                                          
+                             waiting for locator("//mat-card") to be visible    
+                                                                                
+                    INFO     2025-11-11 04:22:37 VFSFlow INFO: Trying fallback: 
+                             waiting for email input...                         
+2025-11-11 04:23:07 ERROR    2025-11-11 04:23:07 VFSFlow ERROR: ✗ Email input   
+                             not found with primary selector:                   
+                             Page.wait_for_selector: Timeout 30000ms exceeded.  
+                             Call log:                                          
+                             waiting for locator("//input") to be visible       
+                                                                                
+                    ERROR    2025-11-11 04:23:07 VFSFlow ERROR: Current URL:    
+                             https://visa.vfsglobal.com/tur/tr/fra/login        
+                    INFO     2025-11-11 04:23:07 VFSFlow INFO: Trying all       
+                             possible email input selectors...                  
+                    INFO     2025-11-11 04:23:07 VFSFlow INFO:   Trying         
+                             selector: input                                    
+2025-11-11 04:23:12 INFO     2025-11-11 04:23:12 VFSFlow INFO:   ✗ Not found    
+                             with: input                                        
+                    INFO     2025-11-11 04:23:12 VFSFlow INFO:   Trying         
+                             selector: input                                    
+2025-11-11 04:23:17 INFO     2025-11-11 04:23:17 VFSFlow INFO:   ✗ Not found    
+                             with: input                                        
+                    INFO     2025-11-11 04:23:17 VFSFlow INFO:   Trying         
+                             selector: input                                    
+2025-11-11 04:23:22 INFO     2025-11-11 04:23:22 VFSFlow INFO:   ✗ Not found    
+                             with: input                                        
+                    INFO     2025-11-11 04:23:22 VFSFlow INFO:   Trying         
+                             selector: input                                    
+2025-11-11 04:23:27 INFO     2025-11-11 04:23:27 VFSFlow INFO:   ✗ Not found    
+                             with: input                                        
+                    INFO     2025-11-11 04:23:27 VFSFlow INFO:   Trying         
+                             selector: input                                    
+2025-11-11 04:23:32 INFO     2025-11-11 04:23:32 VFSFlow INFO:   ✗ Not found    
+                             with: input                                        
+                    ERROR    2025-11-11 04:23:32 VFSFlow ERROR: No email input  
+                             found with any selector!                           
+                    ERROR    2025-11-11 04:23:32 VFSFlow ERROR: This might      
+                             indicate:                                          
+                    ERROR    2025-11-11 04:23:32 VFSFlow ERROR:   1. Page is    
+                             still loading                                      
+                    ERROR    2025-11-11 04:23:32 VFSFlow ERROR:   2.            
+                             Cloudflare/bot protection is blocking              
+                    ERROR    2025-11-11 04:23:32 VFSFlow ERROR:   3. Site       
+                             structure has changed                              
+                    ERROR    2025-11-11 04:23:32 VFSFlow ERROR:   4. Already    
+                             logged in but redirect failed                      
+2025-11-11 04:23:32 ERROR    2025-11-11 04:23:32 DebugLogin ERROR: ❌ Login     
+                             failed: No email input element found on login page 
+                             ╭─────── Traceback (most recent call last) ───────╮
+                             │ /Users/mustafahudaiakgul/agentbotv1/src/agentbo │
+                             │ t/site/vfs_fra_flow.py:277 in ensure_login      │
+                             │                                                 │
+                             │   274 │   │   │   │   try:                      │
+                             │   275 │   │   │   │   │   # Fallback: email inp │
+                             │   276 │   │   │   │   │   logger.info("Trying f │
+                             │ ❱ 277 │   │   │   │   │   await page.wait_for_s │
+                             │       state="visible")                          │
+                             │   278 │   │   │   │   │   logger.info("✓ Email  │
+                             │   279 │   │   │   │   except Exception as e2:   │
+                             │   280 │   │   │   │   │   # Son fallback: herha │
+                             │                                                 │
+                             │ /Users/mustafahudaiakgul/agentbotv1/.venv/lib/p │
+                             │ ython3.12/site-packages/playwright/async_api/_g │
+                             │ enerated.py:7999 in wait_for_selector           │
+                             │                                                 │
+                             │    7996 │   │   """                             │
+                             │    7997 │   │                                   │
+                             │    7998 │   │   return mapping.from_impl_nullab │
+                             │ ❱  7999 │   │   │   await self._impl_obj.wait_f │
+                             │    8000 │   │   │   │   selector=selector, time │
+                             │    8001 │   │   │   )                           │
+                             │    8002 │   │   )                               │
+                             │                                                 │
+                             │ /Users/mustafahudaiakgul/agentbotv1/.venv/lib/p │
+                             │ ython3.12/site-packages/playwright/_impl/_page. │
+                             │ py:397 in wait_for_selector                     │
+                             │                                                 │
+                             │    394 │   │   state: Literal["attached", "deta │
+                             │    395 │   │   strict: bool = None,             │
+                             │    396 │   ) -> Optional[ElementHandle]:        │
+                             │ ❱  397 │   │   return await self._main_frame.wa │
+                             │    398 │                                        │
+                             │    399 │   async def is_checked(                │
+                             │    400 │   │   self, selector: str, strict: boo │
+                             │                                                 │
+                             │ /Users/mustafahudaiakgul/agentbotv1/.venv/lib/p │
+                             │ ython3.12/site-packages/playwright/_impl/_frame │
+                             │ .py:323 in wait_for_selector                    │
+                             │                                                 │
+                             │   320 │   │   state: Literal["attached", "detac │
+                             │   321 │   ) -> Optional[ElementHandle]:         │
+                             │   322 │   │   return from_nullable_channel(     │
+                             │ ❱ 323 │   │   │   await self._channel.send("wai │
+                             │   324 │   │   )                                 │
+                             │   325 │                                         │
+                             │   326 │   async def is_checked(                 │
+                             │                                                 │
+                             │ /Users/mustafahudaiakgul/agentbotv1/.venv/lib/p │
+                             │ ython3.12/site-packages/playwright/_impl/_conne │
+                             │ ction.py:59 in send                             │
+                             │                                                 │
+                             │    56 │   │   self.on("error", lambda exc: self │
+                             │    57 │                                         │
+                             │    58 │   async def send(self, method: str, par │
+                             │ ❱  59 │   │   return await self._connection.wra │
+                             │    60 │   │   │   lambda: self.inner_send(metho │
+                             │    61 │   │   )                                 │
+                             │    62                                           │
+                             │                                                 │
+                             │ /Users/mustafahudaiakgul/agentbotv1/.venv/lib/p │
+                             │ ython3.12/site-packages/playwright/_impl/_conne │
+                             │ ction.py:514 in wrap_api_call                   │
+                             │                                                 │
+                             │   511 │   │   try:                              │
+                             │   512 │   │   │   return await cb()             │
+                             │   513 │   │   except Exception as error:        │
+                             │ ❱ 514 │   │   │   raise rewrite_error(error, f" │
+                             │   515 │   │   finally:                          │
+                             │   516 │   │   │   self._api_zone.set(None)      │
+                             │   517                                           │
+                             ╰─────────────────────────────────────────────────╯
+                             TimeoutError: Page.wait_for_selector: Timeout      
+                             30000ms exceeded.                                  
+                             Call log:                                          
+                             waiting for locator("//input[@id='Email' and       
+                             @type='email']") to be visible                     
+                                                                                
+                                                                                
+                             During handling of the above exception, another    
+                             exception occurred:                                
+                                                                                
+                             ╭─────── Traceback (most recent call last) ───────╮
+                             │ /Users/mustafahudaiakgul/agentbotv1/scripts/deb │
+                             │ ug_login.py:55 in main                          │
+                             │                                                 │
+                             │   52 │                                          │
+                             │   53 │   try:                                   │
+                             │   54 │   │   logger.info("Starting login flow.. │
+                             │ ❱ 55 │   │   await provider.ensure_login(sessio │
+                             │   56 │   │   logger.info("✅ Login successful!" │
+                             │   57 │   │                                      │
+                             │   58 │   │   # Check artifacts                  │
+                             │                                                 │
+                             │ /Users/mustafahudaiakgul/agentbotv1/src/agentbo │
+                             │ t/site/vfs_fra_flow.py:313 in ensure_login      │
+                             │                                                 │
+                             │   310 │   │   │   │   │   │   logger.error("  2 │
+                             │   311 │   │   │   │   │   │   logger.error("  3 │
+                             │   312 │   │   │   │   │   │   logger.error("  4 │
+                             │ ❱ 313 │   │   │   │   │   │   raise Exception(" │
+                             │   314 │   │   │                                 │
+                             │   315 │   │   │   try:                          │
+                             │   316 │   │   │   │   await page.wait_for_selec │
+                             │       timeout=5000)                             │
+                             ╰─────────────────────────────────────────────────╯
+                             Exception: No email input element found on login   
+                             page                                               
+                    ERROR    2025-11-11 04:23:32 DebugLogin ERROR:              
+                             📸 Debug artifacts saved to:                       
+                             artifacts/vfs-fra-session-001                      
+                    ERROR    2025-11-11 04:23:32 DebugLogin ERROR: Check the    
+                             screenshots and HTML to see what went wrong        
+                    INFO     2025-11-11 04:23:32 DebugLogin INFO:               
+                             Press Ctrl+C to exit...                            

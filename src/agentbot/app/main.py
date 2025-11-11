@@ -8,36 +8,25 @@ import os
 
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
+from typing import List
 
 from agentbot.agents.booking import BookingAgent
 from agentbot.agents.monitor import MonitorAgent
+from agentbot.browser.humanlike import set_humanlike_mouse_config
 from agentbot.core.message_bus import MessageBus
 from agentbot.core.message_bus_redis import RedisMessageBus  # optional
 from agentbot.core.locks_redis import RedisLockManager
 from agentbot.core.runtime import AgentRuntime
 from agentbot.core.settings import RuntimeSettings
 from agentbot.data.session_store import SessionRecord, SessionStore
+from agentbot.app.models import AppState, SessionSummary
 from agentbot.services import AuditLogger, EmailInboxService, FormFiller, HttpClient
 from agentbot.services.form_filler import FieldMapping
+from agentbot.utils.env import get_bool_env, get_list_env
 from agentbot.utils.logging import get_logger
 
 
 logger = get_logger("AgentAPI")
-
-
-class AppState(BaseModel):
-    started: bool
-    sessions: int
-
-
-class NewSession(BaseModel):
-    session_id: str
-    user_id: str
-    email: str
-    credentials: dict
-    profile: dict
-    preferences: dict = Field(default_factory=dict)
-    metadata: dict = Field(default_factory=dict)
 
 
 def _load_form_mapping(path: Path | None) -> FormFiller:
@@ -52,6 +41,9 @@ def _load_form_mapping(path: Path | None) -> FormFiller:
 
 def create_app(config_path: Path) -> FastAPI:
     settings = RuntimeSettings.from_file(config_path)
+    set_humanlike_mouse_config(
+        settings.humanlike_mouse.model_dump() if settings.humanlike_mouse else None
+    )
     session_store = SessionStore(settings.session_store_path)
     # Select message bus backend
     bus_backend = os.getenv("AGENTBOT_BUS", "memory").lower()
@@ -91,36 +83,47 @@ def create_app(config_path: Path) -> FastAPI:
     )
 
     # Use BrowserQL if configured, otherwise fall back to Playwright
-    if settings.browserql and settings.browserql.endpoint:
-        endpoint = str(settings.browserql.endpoint)
-        token = settings.browserql.token or os.getenv("BROWSERQL_TOKEN")
-        
-        # Check for hybrid mode (BQL + Playwright via CDP)
-        use_hybrid = settings.browserql.hybrid or os.getenv("BROWSERQL_HYBRID", "false").lower() == "true"
-        
-        if use_hybrid:
-            browser = HybridBrowserFactory(
-                bql_endpoint=endpoint,
-                token=token,
-                proxy=settings.browserql.proxy,
-                proxy_country=settings.browserql.proxy_country,
-                humanlike=settings.browserql.humanlike,
-                block_consent_modals=settings.browserql.block_consent_modals,
-            )
-            logger.info("Using Hybrid mode (BQL stealth + Playwright): %s", endpoint)
-        else:
-            browser = BrowserQLFactory(
-                endpoint=endpoint,
-                token=token,
-                proxy=settings.browserql.proxy,
-                proxy_country=settings.browserql.proxy_country,
-                humanlike=settings.browserql.humanlike,
-                block_consent_modals=settings.browserql.block_consent_modals,
-            )
-            logger.info("Using BrowserQL mode: %s", endpoint)
-    else:
-        browser = BrowserFactory(headless=False)
-        logger.info("Using Playwright BrowserFactory")
+    #if settings.browserql and settings.browserql.endpoint:
+    #    endpoint = str(settings.browserql.endpoint)
+    #    token = settings.browserql.token or os.getenv("BROWSERQL_TOKEN")
+    #    
+    #    # Check for hybrid mode (BQL + Playwright via CDP)
+    #    use_hybrid = settings.browserql.hybrid
+    #    
+    #    if use_hybrid:
+    #        browser = HybridBrowserFactory(
+    #            bql_endpoint=endpoint,
+    #            token=token,
+    #            proxy=settings.browserql.proxy,
+    #            proxy_country=settings.browserql.proxy_country,
+    #            humanlike=settings.browserql.humanlike,
+    #            block_consent_modals=settings.browserql.block_consent_modals,
+    #            hybrid=use_hybrid,
+    #        )
+    #        logger.info("Using Hybrid mode (BQL stealth + Playwright): %s", endpoint)
+    #    else:
+    #        browser = BrowserQLFactory(
+    #            endpoint=endpoint,
+    #            token=token,
+    #            proxy=settings.browserql.proxy,
+    #            proxy_country=settings.browserql.proxy_country,
+    #            humanlike=settings.browserql.humanlike,
+    #            block_consent_modals=settings.browserql.block_consent_modals,
+    #        )
+    #        logger.info("Using BrowserQL mode: %s", endpoint)
+    #else:
+    #    headless = get_bool_env("AGENTBOT_HEADLESS", default=True)
+    #    launch_args = get_list_env("AGENTBOT_BROWSER_ARGS")
+    #    browser = BrowserFactory(headless=headless, extra_launch_args=launch_args)
+    #    logger.info("Using Playwright BrowserFactory (headless=%s)", headless)
+    #    if launch_args:
+    #        logger.info("Custom Chromium flags: %s", launch_args)
+    headless = get_bool_env("AGENTBOT_HEADLESS", default=True)
+    launch_args = get_list_env("AGENTBOT_BROWSER_ARGS")
+    browser = BrowserFactory(headless=headless, extra_launch_args=launch_args)
+    logger.info("Using Playwright BrowserFactory (headless=%s)", headless)
+    if launch_args:
+        logger.info("Custom Chromium flags: %s", launch_args)
     
     lock_manager = RedisLockManager() if bus_backend == "redis" else None
 
@@ -180,8 +183,17 @@ def create_app(config_path: Path) -> FastAPI:
 
     @app.get("/health", response_model=AppState)
     async def health() -> AppState:
-        sessions = len(await session_store.list_sessions())
+        runtime: AgentRuntime | None = app_state.get("runtime")
+        sessions = []
         return AppState(started=True, sessions=sessions)
+
+    @app.get("/apple-touch-icon.png")
+    @app.get("/apple-touch-icon-precomposed.png")
+    @app.get("/favicon.ico")
+    async def favicon() -> None:
+        """Handle favicon and apple touch icon requests to prevent 404 errors in logs."""
+        from fastapi.responses import Response
+        return Response(status_code=204)  # No Content
 
     @app.post("/sessions")
     async def upsert_session(payload: NewSession) -> dict:

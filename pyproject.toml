@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "agentbot"
 version = "0.1.0"
 description = "Multi-agent appointment booking automation framework."
-requires-python = ">=3.10"
+requires-python = ">=3.10, <3.13"
 license = { text = "MIT" }
 authors = [
   { name = "Your Name", email = "you@example.com" }
@@ -25,7 +25,12 @@ dependencies = [
 readme = "README.md"
 
 [project.optional-dependencies]
-browser = ["playwright>=1.40,<1.48", "selectolax>=0.3.15", "tenacity>=8.2,<9"]
+browser = [
+  "playwright>=1.40,<1.45",
+  "selectolax>=0.3.15",
+  "tenacity>=8.2,<9",
+  "playwright-stealth>=1.0.6,<2",
+]
 email = ["imapclient>=3.0,<4.0", "aiosmtplib>=2.0,<3.0"]
 dev = ["pytest>=7.4,<8.0", "pytest-asyncio>=0.21,<0.23", "ruff>=0.1.6"]
 llm = ["openai>=1.0,<2.0"]
@@ -46,4 +51,4 @@ name = "agentbot"
 version = "0.1.0"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"
+python = ">=3.10,<3.13"

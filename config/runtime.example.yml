@@ -13,14 +13,28 @@ email:
   folder: "INBOX"
   use_ssl: true
 form_mapping_path: "config/form_mapping.example.yml"
-# Optional: BrowserQL configuration (uncomment to use BrowserQL instead of Playwright)
-# browserql:
-#   endpoint: "https://production-sfo.browserless.io/chrome/bql"
-#   token: "your-browserless-token"  # or use BROWSERQL_TOKEN env var
-#   proxy: "residential"  # optional: "residential" or "datacenter"
-#   proxy_country: "tr"  # optional: country code (e.g., "tr", "us")
-#   humanlike: true  # optional: enable human-like behavior
-#   block_consent_modals: true  # optional: auto-handle consent modals
-#   hybrid: false  # optional: use Hybrid mode (BQL + Playwright via CDP) for stealth + flexibility
-#
-# For hybrid mode via environment variable: export BROWSERQL_HYBRID=true
+# LLM configuration for AI-powered features
+llm:
+  provider: "openai"
+  # api_key loaded from OPENAI_API_KEY env var
+  model: "gpt-4o-mini"
+  enable_page_analysis: true  # Enable AI-powered form analysis
+  temperature: 0.1  # Low temperature for consistent results
+# BrowserQL configuration (ENABLED - Hybrid mode for stealth)
+browserql:
+  endpoint: "https://production-sfo.browserless.io/chrome/bql"
+  # token loaded from BROWSERQL_TOKEN env var
+  proxy: "residential"
+  proxy_country: "tr"
+  humanlike: true
+  block_consent_modals: true
+  hybrid: true
+
+humanlike_mouse:
+  enabled: true
+  move_duration_range: [0.4, 1.1]
+  hover_delay_range: [0.07, 0.22]
+  press_duration_range: [0.04, 0.15]
+  curvature_range: [0.1, 0.4]
+  noise: 2.5
+  steps_range: [15, 35]

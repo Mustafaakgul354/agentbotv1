@@ -36,7 +36,7 @@ htmlcov/
 coverage.xml
 
 # Environments
-.venv
+.venv/
 venv/
 env/
 .env
@@ -46,6 +46,9 @@ env/
 # IDE/editor
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
@@ -68,6 +71,7 @@ dist/
 
 # Playwright
 playwright-report/
+playwright/.cache/
 
 # IDE
 .idea/
@@ -76,4 +80,4 @@ playwright-report/
 # Local data
 session_store.json
 logs/
-
+artifacts/

@@ -1,15 +1,24 @@
 base_url: "https://visa.vfsglobal.com"
-availability_endpoint: "/tur/en/fra/book-appointment"  # navigational; DOM parse
-booking_endpoint: "/tur/en/fra/book-appointment"       # navigational; DOM submit
-submit_endpoint: "/tur/en/fra/book-appointment"        # navigational; DOM submit
-session_store_path: "config/session_store.example.json"
+availability_endpoint: "/tur/tr/fra/book-appointment"  # navigational; DOM parse
+booking_endpoint: "/tur/tr/fra/book-appointment"       # navigational; DOM submit
+submit_endpoint: "/tur/tr/fra/book-appointment"        # navigational; DOM submit
+session_store_path: "config/session_store.json"
 # Set AGENTBOT_SESSION_KEY in your environment to enable Fernet encryption for the session store.
 poll_interval_seconds: 25
 email:
   host: "imap.example.com"
   port: 993
-  username: "user@example.com"
-  password: "change-me"
+  username: "ruhsomurenzed@gmail.com"
+  password: "jjhrdayjhsbfrdyd"
   folder: "INBOX"
   use_ssl: true
 form_mapping_path: "config/form_mapping.vfs.yml"
+
+humanlike_mouse:
+  enabled: true
+  move_duration_range: [0.4, 1.1]
+  hover_delay_range: [0.07, 0.22]
+  press_duration_range: [0.04, 0.15]
+  curvature_range: [0.1, 0.4]
+  noise: 2.5
+  steps_range: [15, 35]
